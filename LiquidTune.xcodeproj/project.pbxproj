@@ -41,6 +41,7 @@
     02A0000000000000000000D8 /* PrivacyInfo.xcprivacy */ = {isa = PBXBuildFile; fileRef = 02A000000000000000000074; };
     02A0000000000000000000D9 /* LICENSE */ = {isa = PBXBuildFile; fileRef = 02A000000000000000000075; };
     02A0000000000000000000DA /* NOTICE */ = {isa = PBXBuildFile; fileRef = 02A000000000000000000076; };
+    02A0000000000000000000DB /* LiquidTune.icon in Resources */ = {isa = PBXBuildFile; fileRef = 02A000000000000000000077; };
     02A000000000000000000001 = { isa = PBXProject; attributes = { LastSwiftUpdateCheck = 2600; LastUpgradeCheck = 2600; TargetAttributes = { 02A000000000000000000002 = { CreatedOnToolsVersion = 26.0; SystemCapabilities = { com.apple.BackgroundModes = { enabled = 1; }; }; }; }; }; buildConfigurationList = 02A00000000000000000000C; compatibilityVersion = "Xcode 15.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base,); mainGroup = 02A000000000000000000003; productRefGroup = 02A000000000000000000006; projectDirPath = ""; projectRoot = ""; targets = (02A000000000000000000002,); };
     02A000000000000000000002 = { isa = PBXNativeTarget; buildConfigurationList = 02A00000000000000000000D; buildPhases = (02A000000000000000000007, 02A000000000000000000008, 02A000000000000000000009,); buildRules = (); dependencies = (); name = LiquidTune; productName = LiquidTune; productReference = 02A00000000000000000000A; productType = "com.apple.product-type.application"; };
     02A000000000000000000003 = { isa = PBXGroup; children = (02A000000000000000000004, 02A000000000000000000005, 02A000000000000000000006, 02A000000000000000000075, 02A000000000000000000076,); sourceTree = "<group>"; };
@@ -76,7 +77,7 @@
       SWIFT_COMPILATION_MODE = wholemodule;
     }; };
     02A000000000000000000010 = {isa = XCBuildConfiguration; name = Debug; buildSettings = {
-      ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+      ASSETCATALOG_COMPILER_APPICON_NAME = LiquidTune;
       CODE_SIGN_STYLE = Automatic;
       CURRENT_PROJECT_VERSION = 1;
       GENERATE_INFOPLIST_FILE = NO;
@@ -90,7 +91,7 @@
       TARGETED_DEVICE_FAMILY = "1,2";
     }; };
     02A000000000000000000011 = {isa = XCBuildConfiguration; name = Release; buildSettings = {
-      ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+      ASSETCATALOG_COMPILER_APPICON_NAME = LiquidTune;
       CODE_SIGN_STYLE = Automatic;
       CURRENT_PROJECT_VERSION = 1;
       GENERATE_INFOPLIST_FILE = NO;
