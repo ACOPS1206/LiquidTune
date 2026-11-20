@@ -15,6 +15,7 @@ struct PlayerScreen: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var mode: Mode = .artwork
     @State private var showsLyricsControls = true
+    @State private var previousIdleTimerDisabled: Bool?
     @State private var showsLandscapeControls = false
     @State private var landscapeControlActivity = 0
     @State private var outputName = ""
@@ -122,7 +123,12 @@ struct PlayerScreen: View {
                 backdropTile = tile
             }
         }
-        .onAppear(perform: refreshOutput)
+        .onAppear {
+            refreshOutput()
+            updateIdleTimer(for: scenePhase)
+        }
+        .onChange(of: scenePhase) { _, phase in updateIdleTimer(for: phase) }
+        .onDisappear(perform: restoreIdleTimer)
         .onChange(of: mode) { _, mode in
             if mode != .lyrics { showsLyricsControls = true }
         }
@@ -576,6 +582,22 @@ struct PlayerScreen: View {
 
     private func refreshOutput() {
         outputName = AVAudioSession.sharedInstance().currentRoute.outputs.map(\.portName).joined(separator: ", ")
+    }
+
+    private func updateIdleTimer(for phase: ScenePhase) {
+        guard phase == .active else {
+            restoreIdleTimer()
+            return
+        }
+        guard previousIdleTimerDisabled == nil else { return }
+        previousIdleTimerDisabled = UIApplication.shared.isIdleTimerDisabled
+        UIApplication.shared.isIdleTimerDisabled = true
+    }
+
+    private func restoreIdleTimer() {
+        guard let previousIdleTimerDisabled else { return }
+        UIApplication.shared.isIdleTimerDisabled = previousIdleTimerDisabled
+        self.previousIdleTimerDisabled = nil
     }
 
     private func seekBar(showFormat: Bool = true, compact: Bool = false) -> some View {

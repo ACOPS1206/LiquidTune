@@ -42,7 +42,7 @@
     02A0000000000000000000D9 /* LICENSE */ = {isa = PBXBuildFile; fileRef = 02A000000000000000000075; };
     02A0000000000000000000DA /* NOTICE */ = {isa = PBXBuildFile; fileRef = 02A000000000000000000076; };
     02A000000000000000000001 = { isa = PBXProject; attributes = { LastSwiftUpdateCheck = 2600; LastUpgradeCheck = 2600; TargetAttributes = { 02A000000000000000000002 = { CreatedOnToolsVersion = 26.0; SystemCapabilities = { com.apple.BackgroundModes = { enabled = 1; }; }; }; }; }; buildConfigurationList = 02A00000000000000000000C; compatibilityVersion = "Xcode 15.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base,); mainGroup = 02A000000000000000000003; productRefGroup = 02A000000000000000000006; projectDirPath = ""; projectRoot = ""; targets = (02A000000000000000000002,); };
-    02A000000000000000000002 = { isa = PBXNativeTarget; buildConfigurationList = 02A00000000000000000000D; buildPhases = (02A000000000000000000007, 02A000000000000000000008, 02A000000000000000000009,); buildRules = (); dependencies = (); name = Twelve; productName = Twelve; productReference = 02A00000000000000000000A; productType = "com.apple.product-type.application"; };
+    02A000000000000000000002 = { isa = PBXNativeTarget; buildConfigurationList = 02A00000000000000000000D; buildPhases = (02A000000000000000000007, 02A000000000000000000008, 02A000000000000000000009,); buildRules = (); dependencies = (); name = LiquidTune; productName = LiquidTune; productReference = 02A00000000000000000000A; productType = "com.apple.product-type.application"; };
     02A000000000000000000003 = { isa = PBXGroup; children = (02A000000000000000000004, 02A000000000000000000005, 02A000000000000000000006, 02A000000000000000000075, 02A000000000000000000076,); sourceTree = "<group>"; };
     02A000000000000000000004 = { isa = PBXGroup; children = (02A000000000000000000064, 02A000000000000000000065, 02A000000000000000000066, 02A000000000000000000067, 02A000000000000000000068, 02A000000000000000000069, 02A00000000000000000006A, 02A00000000000000000006B, 02A000000000000000000071, 02A000000000000000000072, 02A000000000000000000073, 02A000000000000000000074, 02A000000000000000000077,); path = App; sourceTree = "<group>"; };
     02A000000000000000000005 = { isa = PBXGroup; children = (02A00000000000000000006C, 02A00000000000000000006D, 02A00000000000000000006E, 02A00000000000000000006F, 02A000000000000000000070,); path = Core; sourceTree = "<group>"; };
@@ -50,7 +50,7 @@
     02A000000000000000000007 = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (02A0000000000000000000C8, 02A0000000000000000000C9, 02A0000000000000000000CA, 02A0000000000000000000CB, 02A0000000000000000000CC, 02A0000000000000000000CD, 02A0000000000000000000CE, 02A0000000000000000000CF, 02A0000000000000000000D0, 02A0000000000000000000D1, 02A0000000000000000000D2, 02A0000000000000000000D3, 02A0000000000000000000D4,); runOnlyForDeploymentPostprocessing = 0; };
     02A000000000000000000008 = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
     02A000000000000000000009 = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (02A0000000000000000000D5, 02A0000000000000000000D8, 02A0000000000000000000D9, 02A0000000000000000000DA, 02A0000000000000000000DB,); runOnlyForDeploymentPostprocessing = 0; };
-    02A00000000000000000000A = { isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Twelve.app; sourceTree = BUILT_PRODUCTS_DIR; };
+    02A00000000000000000000A = { isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LiquidTune.app; sourceTree = BUILT_PRODUCTS_DIR; };
     02A00000000000000000000C = { isa = XCConfigurationList; buildConfigurations = (02A00000000000000000000E, 02A00000000000000000000F,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
     02A00000000000000000000D = { isa = XCConfigurationList; buildConfigurations = (02A000000000000000000010, 02A000000000000000000011,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
     02A00000000000000000000E = {isa = XCBuildConfiguration; name = Debug; buildSettings = {
@@ -84,7 +84,7 @@
       LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
       MARKETING_VERSION = 1;
       PRODUCT_BUNDLE_IDENTIFIER = dev.acops.liquidtune;
-      PRODUCT_NAME = Twelve;
+      PRODUCT_NAME = LiquidTune;
       SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
       SUPPORTS_MACCATALYST = NO;
       TARGETED_DEVICE_FAMILY = "1,2";
@@ -98,7 +98,7 @@
       LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
       MARKETING_VERSION = 1;
       PRODUCT_BUNDLE_IDENTIFIER = dev.acops.liquidtune;
-      PRODUCT_NAME = Twelve;
+      PRODUCT_NAME = LiquidTune;
       SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
       SUPPORTS_MACCATALYST = NO;
       TARGETED_DEVICE_FAMILY = "1,2";

@@ -6,7 +6,7 @@ on:
     paths:
       - 'App/**'
       - 'Core/**'
-      - 'Twelve.xcodeproj/**'
+      - 'LiquidTune.xcodeproj/**'
       - 'Scripts/build-unsigned-ipa.sh'
   workflow_dispatch:
 

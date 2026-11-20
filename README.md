@@ -19,6 +19,8 @@ Play music from your Jellyfin or Subsonic server, or import audio files directly
 - **Instant Mix** — Start with any song and generate a new queue of related tracks. LiquidTune uses Jellyfin recommendations when available and can also match songs by artist and genre.
 - **Artwork and playback** — The player uses colors from the album cover. Background audio, lock-screen controls, and AirPlay are supported.
 
+The screen stays awake while the full-screen player, lyrics, or queue is open.
+
 ## Download
 
 Requires **iOS or iPadOS 26.0 or later**.
@@ -31,7 +33,7 @@ Open the latest successful [GitHub Actions build](https://github.com/ACOPS1206/L
 
 ## Build from source
 
-Open `Twelve.xcodeproj` in **Xcode 26 or later** and select the **Twelve** scheme. Choose a simulator or a connected device to run the app.
+Open `LiquidTune.xcodeproj` in **Xcode 26 or later** and select the **LiquidTune** scheme. Choose a simulator or a connected device to run the app.
 
 To build an unsigned IPA from the repository root, run:
 
