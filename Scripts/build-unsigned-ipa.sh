@@ -12,7 +12,7 @@ xcodebuild -project "$project/Twelve.xcodeproj" -scheme Twelve -configuration Re
 app="$derived/Build/Products/Release-iphoneos/Twelve.app"
 executable="$(/usr/libexec/PlistBuddy -c 'Print CFBundleExecutable' "$app/Info.plist")"
 test -f "$app/$executable"
-xcrun lipo -verify_arch arm64 "$app/$executable"
+xcrun lipo "$app/$executable" -verify_arch arm64
 xcrun vtool -show-build "$app/$executable" | grep -Eq 'platform[[:space:]]+IOS$'
 
 stage="$(mktemp -d)"
