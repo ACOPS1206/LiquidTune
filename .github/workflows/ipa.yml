@@ -1,0 +1,32 @@
+name: Build unsigned IPA
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'App/**'
+      - 'Core/**'
+      - 'Twelve.xcodeproj/**'
+      - 'Scripts/build-unsigned-ipa.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-ipa:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Build unsigned device IPA
+        run: |
+          xcodebuild -version
+          bash Scripts/build-unsigned-ipa.sh
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: LiquidTune-unsigned-ipa
+          path: build/LiquidTune-unsigned.ipa
+          if-no-files-found: error
