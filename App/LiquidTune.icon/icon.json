@@ -1,67 +1,19 @@
 {
-  "fill-specializations" : [
-    {
-      "value" : {
-        "linear-gradient" : [
-          "display-p3:0.80784,0.74510,0.84706,1.00000",
-          "srgb:0.56078,0.70196,0.86667,1.00000"
-        ]
-      }
-    },
-    {
-      "appearance" : "dark",
-      "value" : {
-        "linear-gradient" : [
-          "srgb:0.00000,0.00000,0.00000,1.00000",
-          "display-p3:0.00000,0.00000,0.00000,1.00000"
-        ]
-      }
-    }
-  ],
+  "fill" : {
+    "linear-gradient" : [
+      "display-p3:0.80784,0.74510,0.84706,1.00000",
+      "srgb:0.56078,0.70196,0.86667,1.00000"
+    ]
+  },
   "groups" : [
     {
       "layers" : [
-
-      ],
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.5
-      },
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.3
-      }
-    },
-    {
-      "layers" : [
         {
-          "fill-specializations" : [
-            {
-              "value" : {
-                "linear-gradient" : [
-                  "display-p3:1.00000,1.00000,1.00000,1.00000",
-                  "display-p3:1.00000,1.00000,1.00000,0.50000"
-                ]
-              }
-            },
-            {
-              "appearance" : "tinted",
-              "value" : {
-                "linear-gradient" : [
-                  "display-p3:0.80784,0.74510,0.84706,1.00000",
-                  "display-p3:0.56078,0.70196,0.86667,0.50000"
-                ]
-              }
-            }
-          ],
-          "glass-specializations" : [
-            {
-              "appearance" : "light",
-              "value" : true
-            }
-          ],
-          "image-name" : "Apple_Music_logo 2.svg",
-          "name" : "Apple_Music_logo 2",
+          "fill" : {
+            "solid" : "srgb:1.00000,1.00000,1.00000,1.00000"
+          },
+          "image-name" : "Apple_Music_logo.svg",
+          "name" : "Apple_Music_logo",
           "position" : {
             "scale" : 3,
             "translation-in-points" : [
