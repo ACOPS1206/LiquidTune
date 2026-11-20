@@ -25,7 +25,7 @@ The screen stays awake while the full-screen player, lyrics, or queue is open.
 
 Requires **iOS or iPadOS 26.0 or later**.
 
-<a href="https://github.com/ACOPS1206/LiquidTune/actions/runs/44690604323/artifacts/14607574815">
+<a href="https://github.com/ACOPS1206/LiquidTune/actions/runs/44711767649/artifacts/14617038127">
   <img src="./Download.png" width="200" alt="Download LiquidTune IPA">
 </a>
 
