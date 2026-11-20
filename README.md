@@ -7,6 +7,10 @@
 
 Play music from your Jellyfin or Subsonic server, or import audio files directly from the Files app.
 
+<p align="center">
+  <img src="./DEMO.png" width="500" alt="LiquidTune app icon">
+</p>
+
 ## Features
 
 - **Music sources** — Stream from Jellyfin, Subsonic, and compatible OpenSubsonic servers, or play music stored on your device.
@@ -18,6 +22,8 @@ Play music from your Jellyfin or Subsonic server, or import audio files directly
 ## Download
 
 Requires **iOS or iPadOS 26.0 or later**.
+
+<img src="Download.png" href="https://github.com/ACOPS1206/LiquidTune/actions/runs/44690604323/artifacts/14607574815" style="width: 200px">
 
 Open the latest successful [GitHub Actions build](https://github.com/ACOPS1206/LiquidTune/actions/workflows/ipa.yml) and download the **LiquidTune-unsigned-ipa** artifact. Extract the ZIP to get `LiquidTune-unsigned.ipa`. The IPA requires signing before installation.
 
