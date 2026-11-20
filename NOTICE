@@ -1,0 +1,60 @@
+LiquidTune (formerly Twelve for iOS)
+A native iPhone and iPad music player that began as an unofficial port of the
+Apache-2.0 licensed Twelve Android application.
+
+Upstream: The LineageOS Project
+https://github.com/LineageOS/android_packages_apps_Twelve
+Reference revision: bc89c9e51509ac25e5c11e3ff6dfc5e47809b5ac (lineage-24.0)
+
+The following Android vector drawable paths were converted to SVG template
+images for iOS. Fill and sizing were adapted for SwiftUI tinting. Original
+copyright holders and Apache-2.0 licensing are retained in the SVG files.
+
+- ic_home.xml — Material Design Authors / Google LLC
+- ic_search.xml — Material Design Authors / Google LLC
+- ic_lineage_library.xml — The LineageOS Project
+- ic_settings.xml — Material Design Authors / Google LLC
+- ic_expand_content.xml — Material Design Authors / Google LLC
+- ic_album.xml — Material Design Authors / Google LLC
+- ic_person.xml — Material Design Authors / Google LLC
+- ic_genres.xml — Material Design Authors / Google LLC
+- ic_playlist_add.xml — Material Design Authors / Google LLC
+- ic_playlist_play.xml — Material Design Authors / Google LLC
+- ic_music_note.xml — Material Design Authors / Google LLC
+- ic_play_arrow.xml — Material Design Authors / Google LLC
+- ic_pause.xml — Material Design Authors / Google LLC
+- ic_skip_next.xml — Material Design Authors / Google LLC
+- ic_skip_previous.xml — Material Design Authors / Google LLC
+- ic_shuffle.xml — Material Design Authors / Google LLC
+- ic_repeat.xml — Material Design Authors / Google LLC
+- ic_repeat_one.xml — Material Design Authors / Google LLC
+- ic_more_vert.xml — Material Design Authors / Google LLC
+- ic_add.xml — Material Design Authors / Google LLC
+- ic_close.xml — Material Design Authors / Google LLC
+- ic_keyboard_arrow_down.xml — Material Design Authors / Google LLC
+- ic_arrow_drop_down.xml — Material Design Authors / Google LLC
+- ic_graphic_eq.xml — Material Design Authors / Google LLC
+- ic_heart_filled.xml — Material Design Authors / Google LLC
+- ic_heart_unfilled.xml — Material Design Authors / Google LLC
+- ic_drag_handle.xml — Material Design Authors / Google LLC
+- ic_add_to_queue.xml — Material Design Authors / Google LLC
+- ic_queue_play_next.xml — Material Design Authors / Google LLC
+- ic_delete.xml — Material Design Authors / Google LLC
+- ic_info.xml — Material Design Authors / Google LLC
+- ic_audio_file.xml — Material Design Authors / Google LLC
+- ic_lyrics.xml — Material Design Authors / Google LLC
+- ic_mobile_speaker.xml — Material Design Authors / Google LLC
+- ic_sort_alphabetical_ascending.xml — Pictogrammers
+- ic_edit.xml — Material Design Authors / Google LLC
+- ic_check.xml — Material Design Authors / Google LLC
+
+The launcher icon, Swift source and SwiftUI layouts are new work for this
+port. LineageOS does not publish or endorse this build. No Jellyfin logo or
+third-party screenshot is distributed.
+
+Roboto is Copyright 2011 The Roboto Project Authors and licensed under
+the SIL Open Font License 1.1. The variable font from Google Fonts
+was instantiated into the four static weights retained in the source tree.
+Version 0.2.0 uses the iOS system font and SF Symbols in the interface.
+https://github.com/google/fonts/tree/main/ofl/roboto
+See App/Fonts/OFL.txt.
