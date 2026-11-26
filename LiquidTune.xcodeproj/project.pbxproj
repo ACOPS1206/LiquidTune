@@ -85,7 +85,7 @@
     02A000000000000000000010 = {isa = XCBuildConfiguration; name = Debug; buildSettings = {
       ASSETCATALOG_COMPILER_APPICON_NAME = LiquidTune;
       CODE_SIGN_STYLE = Automatic;
-      CURRENT_PROJECT_VERSION = 2;
+      CURRENT_PROJECT_VERSION = 3;
       GENERATE_INFOPLIST_FILE = NO;
       INFOPLIST_FILE = App/Info.plist;
       LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
@@ -99,7 +99,7 @@
     02A000000000000000000011 = {isa = XCBuildConfiguration; name = Release; buildSettings = {
       ASSETCATALOG_COMPILER_APPICON_NAME = LiquidTune;
       CODE_SIGN_STYLE = Automatic;
-      CURRENT_PROJECT_VERSION = 2;
+      CURRENT_PROJECT_VERSION = 3;
       GENERATE_INFOPLIST_FILE = NO;
       INFOPLIST_FILE = App/Info.plist;
       LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";

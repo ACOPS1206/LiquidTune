@@ -102,7 +102,8 @@ struct PlayerScreen: View {
         .overlay {
             if ribbonStyle != .off {
                 RibbonOverlay(playback: playback, style: ribbonStyle,
-                              playsAnimation: ribbonCaptureEnabled && playback.playing)
+                              playsAnimation: ribbonCaptureEnabled && playback.playing,
+                              colors: model.dynamicColor ? artworkColors?.ribbonColors(dark: dark) ?? .standard : .standard)
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)

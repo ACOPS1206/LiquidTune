@@ -19,6 +19,32 @@ struct ArtworkPalette: Sendable {
     struct Sample {
         let palette: ArtworkPalette?
         let bassRegion: BassRegion?
+
+        @MainActor func ribbonColors(dark: Bool) -> RibbonColors {
+            // The background's dominant hue and its bass region already share this sample.
+            // Lift their value for emitted light, keeping their original hues.
+            let primary = palette.map {
+                UIColor(hue: $0.hue, saturation: $0.saturation, brightness: 1, alpha: 1)
+            } ?? .white
+            let secondary = bassRegion.map { UIColor($0.color) } ?? primary
+            return RibbonColors(
+                first: Self.lightHex(primary, brightness: dark ? 1 : 0.86),
+                second: Self.lightHex(secondary, brightness: dark ? 0.82 : 0.68)
+            )
+        }
+
+        @MainActor private static func lightHex(_ color: UIColor, brightness: CGFloat) -> String {
+            var hue: CGFloat = 0
+            var saturation: CGFloat = 0
+            color.getHue(&hue, saturation: &saturation, brightness: nil, alpha: nil)
+            let light = UIColor(hue: hue, saturation: saturation, brightness: brightness, alpha: 1)
+            var r: CGFloat = 0
+            var g: CGFloat = 0
+            var b: CGFloat = 0
+            light.getRed(&r, green: &g, blue: &b, alpha: nil)
+            return String(format: "#%02x%02x%02x",
+                          Int((r * 255).rounded()), Int((g * 255).rounded()), Int((b * 255).rounded()))
+        }
     }
 
     struct BassRegion {

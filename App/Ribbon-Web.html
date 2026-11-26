@@ -117,6 +117,7 @@ const seek = byId("seek");
 const mode = byId("mode");
 const status = byId("status");
 let needsRedraw = true;
+let cornerRadii = [0, 0, 0, 0];
 const prefersReducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 if (prefersReducedMotion.matches) mode.value = "still";
 
@@ -137,6 +138,7 @@ precision highp sampler2D;
 #define FIELD ${FIELD}
 uniform sampler2D field;
 uniform vec2 screenSize;
+uniform vec4 cornerRadii; // top left, top right, bottom right, bottom left, in render pixels
 uniform vec4 shape;   // x: glow depth W (px), y: line width (px), z: corner softness (px), w: brightness
 uniform vec4 mixing;  // x: line gain, y: halo gain, z: halo reach (× W), w: exposure
 uniform vec3 colorA;  // linear RGB
@@ -163,25 +165,50 @@ void main() {
   float mx = min(p.x, w - p.x);
   float my = min(p.y, h - p.y);
   float nearest = min(mx, my);
-  if (nearest > W * 1.5) discard;
+  bool right = p.x > w * 0.5;
+  bool bottom = p.y > h * 0.5;
+  float radius = bottom ? (right ? cornerRadii.z : cornerRadii.w)
+                        : (right ? cornerRadii.y : cornerRadii.x);
+  if (nearest > radius + W * 1.5) discard;
 
   // Depth from the display edge: a soft minimum of both margins whose softness grows with
   // depth, so every iso-depth line turns a corner on a curve. No diagonal crease, and no
   // doubled light where two sides meet. At the edge itself the corner is gently rounded.
   float soft = shape.z + 0.3 * nearest;
   float depth = nearest - soft * log(1.0 + exp(-abs(mx - my) / soft));
-  float coverage = clamp(depth + 0.5, 0.0, 1.0);
-  float d = max(depth, 0.0);
 
   // Perimeter coordinate in laps, clockwise from the top-left corner. Near a corner the two
   // side coordinates are blended by angle, so light crossing it keeps direction and colour.
   float perimeter = 2.0 * (w + h);
-  bool right = p.x > w * 0.5;
-  bool bottom = p.y > h * 0.5;
   float alongTopBottom = bottom ? 2.0 * w + h - p.x : p.x;
   float alongSides = right ? w + p.y : (bottom ? perimeter - p.y : -p.y);
   float toTopBottom = 1.0 / (1.0 + exp(clamp((my - mx) / (shape.z + 0.8 * nearest), -40.0, 40.0)));
-  float s = mix(alongSides, alongTopBottom, toTopBottom) / perimeter;
+  float edgePosition = mix(alongSides, alongTopBottom, toTopBottom);
+  if (radius > 0.0) {
+    vec2 q = vec2(radius - mx, radius - my);
+    depth = nearest;
+    if (q.x > 0.0 && q.y > 0.0) {
+      // Cubic superellipse: curvature eases to zero at the straight edges. Project along its
+      // normal near the contour so the line retains the same thickness through each corner.
+      vec2 relative = q / radius;
+      vec2 squared = relative * relative;
+      float norm = pow(dot(squared, relative), 1.0 / 3.0);
+      depth = radius * (1.0 - norm) * (norm * norm / max(length(squared), 1e-9));
+      depth = mix(radius, depth, smoothstep(0.0, 0.15, norm));
+      float middle = bottom ? (right ? w + h : 2.0 * w + h) : (right ? w : 0.0);
+      float direction = right != bottom ? 1.0 : -1.0;
+      float turn = 1.27323954 * atan(q.x, q.y) - 1.0;
+      float tangent = middle + direction * radius * turn;
+      edgePosition = mix(edgePosition, tangent, smoothstep(0.0, 0.65 * radius, max(q.x, q.y)));
+    } else {
+      float axis = mx < my ? alongSides : alongTopBottom;
+      edgePosition = mix(edgePosition, axis, smoothstep(0.0, 0.65 * radius, max(q.x, q.y)));
+    }
+  }
+  if (depth <= -0.5 || depth > W * 1.5) discard;
+  float s = edgePosition / perimeter;
+  float coverage = clamp(depth + 0.5, 0.0, 1.0);
+  float d = max(depth, 0.0);
 
   vec4 light = fieldAt(s, 0);
   float thickness = fieldAt(s, 1).r;
@@ -703,7 +730,7 @@ function initRenderer() {
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
   gl.useProgram(program);
   const uniform = Object.fromEntries(
-    ["field", "screenSize", "shape", "mixing", "colorA", "colorB"].map(name => [name, gl.getUniformLocation(program, name)])
+    ["field", "screenSize", "cornerRadii", "shape", "mixing", "colorA", "colorB"].map(name => [name, gl.getUniformLocation(program, name)])
   );
   const texture = gl.createTexture();
   gl.activeTexture(gl.TEXTURE0);
@@ -730,19 +757,22 @@ function initRenderer() {
     const glow = Number(byId("halo").value) / 100;
     const intensity = Number(byId("intensity").value) / 100;
     const thickness = Number(byId("thickness").value) / 100;
+    const w = canvas.width, h = canvas.height;
+    const maxRadius = Math.min(w, h) * 0.5;
+    const radii = cornerRadii.map(radius => Math.min(maxRadius, radius * scale()));
     geometry.top = canvas.width / (2 * (canvas.width + canvas.height));
     const edges = ["edgeTop", "edgeRight", "edgeBottom", "edgeLeft"].map(id => byId(id).checked);
     geometry.edges = edges.some(Boolean) ? edges : [true, true, true, true];
     geometry.follow = byId("ribbonFollow").checked;
     computeField(time, features, reactive, calm, events, byId("style").value);
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, FIELD, 2, gl.RGBA, gl.FLOAT, field);
+    gl.uniform4fv(uniform.cornerRadii, radii);
     gl.uniform4f(uniform.shape, depth, Math.max(1.5 * scale(), depth * 0.085 * thickness), Math.max(2 * scale(), depth * 0.12), intensity);
     gl.uniform4f(uniform.mixing, 1.4 * line, 0.32 * glow, 0.08 + 0.16 * glow, 2.6);
     gl.uniform3fv(uniform.colorA, readColor("first"));
     gl.uniform3fv(uniform.colorB, readColor("second"));
     gl.clear(gl.COLOR_BUFFER_BIT);
-    const w = canvas.width, h = canvas.height;
-    const band = Math.ceil(depth * 1.5) + 1;
+    const band = Math.ceil(Math.max(...radii) + depth * 1.5) + 1;
     if (band * 2 >= Math.min(w, h)) {
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       return;
@@ -1361,6 +1391,9 @@ if (embedded) {
       syncEdges();
       syncPreset();
       showDelay();
+      if (Array.isArray(settings.cornerRadii) && settings.cornerRadii.length === 4) {
+        cornerRadii = settings.cornerRadii.map(radius => Number.isFinite(radius) ? Math.max(0, radius) : 0);
+      }
       if (settings.mode && settings.mode !== mode.value) {
         if (settings.mode === "live" && mode.value !== "live") live.reset();
         if (settings.mode !== "music") audio.pause();
