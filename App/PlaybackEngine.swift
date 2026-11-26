@@ -38,6 +38,9 @@ final class PlaybackEngine {
 
     var latestBassEvent: UInt64 { bassMonitor?.latestEvent ?? 0 }
 
+    @ObservationIgnored private(set) var ribbonInputID = UUID()
+    @ObservationIgnored private var ribbonCaptureEnabled = false
+
     @ObservationIgnored private var waveTask: Task<Void, Never>?
     @ObservationIgnored private var visualizerEnabled = false
     @ObservationIgnored private var generation = UUID()
@@ -204,6 +207,20 @@ final class PlaybackEngine {
         }
     }
 
+    func setRibbonCaptureEnabled(_ enabled: Bool) {
+        guard ribbonCaptureEnabled != enabled else { return }
+        ribbonCaptureEnabled = enabled
+        ribbonInputID = UUID()
+        bassMonitor?.ribbonBuffer.setEnabled(enabled && seekGeneration == nil)
+    }
+
+    func drainRibbonFrames() -> [[Float]] {
+        guard ribbonCaptureEnabled, seekGeneration == nil, let bassMonitor else { return [] }
+        let time = player.currentTime().seconds
+        guard time.isFinite else { return [] }
+        return bassMonitor.ribbonBuffer.drain(at: time)
+    }
+
     func seek(to seconds: Double) {
         guard current != nil, seconds.isFinite else { return }
         let target = max(0, duration > 0 ? min(duration, seconds) : seconds)
@@ -232,6 +249,7 @@ final class PlaybackEngine {
 
     private func load(play: Bool, at offset: Double = 0) {
         generation = UUID()
+        ribbonInputID = UUID()
         let loadID = generation
         seekGeneration = nil
         lastTick = nil
@@ -247,6 +265,7 @@ final class PlaybackEngine {
         waveTask = nil
         bassTask?.cancel()
         bassTask = nil
+        bassMonitor?.ribbonBuffer.setEnabled(false)
         bassMonitor = nil
         artwork = nil
         waveform = []
@@ -309,6 +328,7 @@ final class PlaybackEngine {
                   self.generation == loadID, self.player.currentItem === item else { return }
             let monitor = BassMonitor()
             guard let tap = monitor.makeTap() else { return }
+            monitor.ribbonBuffer.setEnabled(self.ribbonCaptureEnabled && self.seekGeneration == nil)
             let parameters = AVMutableAudioMixInputParameters(track: track)
             parameters.audioTapProcessor = tap
             let mix = AVMutableAudioMix()
@@ -354,11 +374,15 @@ final class PlaybackEngine {
     private func performSeek(_ target: Double) {
         let id = UUID()
         seekGeneration = id
+        ribbonInputID = UUID()
+        bassMonitor?.ribbonBuffer.setEnabled(false)
         player.seek(to: CMTime(seconds: duration > 0 ? min(target, duration) : target, preferredTimescale: 600),
                     toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self, self.seekGeneration == id else { return }
                 self.seekGeneration = nil
+                self.ribbonInputID = UUID()
+                self.bassMonitor?.ribbonBuffer.setEnabled(self.ribbonCaptureEnabled)
                 self.beginIfReady()
             }
         }
@@ -550,10 +574,13 @@ final class PlaybackEngine {
 }
 
 
-// Render callbacks own the filter state. The UI only reads the packed, atomic event.
+// Render callbacks own the filter state. The UI reads the bass event and Ribbon band buffer.
 private final class BassMonitor: @unchecked Sendable {
     private let event = Atomic<UInt64>(0)
     var latestEvent: UInt64 { event.load(ordering: .relaxed) }
+    let ribbonBuffer = RibbonBandBuffer()
+    private var ribbonMeter: RibbonBandMeter?
+    private var sampleRate: Double = 0
 
     private var samplesPerWindow = 0
     private var highCoefficient: Float = 0
@@ -584,10 +611,11 @@ private final class BassMonitor: @unchecked Sendable {
             },
             unprepare: nil,
             process: { tap, requested, _, buffers, count, flags in
-                let status = MTAudioProcessingTapGetSourceAudio(tap, requested, buffers, flags, nil, count)
+                var timeRange = CMTimeRange.invalid
+                let status = MTAudioProcessingTapGetSourceAudio(tap, requested, buffers, flags, &timeRange, count)
                 guard status == noErr else { count.pointee = 0; return }
                 let monitor = Unmanaged<BassMonitor>.fromOpaque(MTAudioProcessingTapGetStorage(tap)).takeUnretainedValue()
-                monitor.process(buffers, frames: count.pointee)
+                monitor.process(buffers, frames: count.pointee, timeRange: timeRange)
             }
         )
         var tap: MTAudioProcessingTap?
@@ -598,6 +626,7 @@ private final class BassMonitor: @unchecked Sendable {
 
     private func prepare(_ format: AudioStreamBasicDescription) {
         samplesPerWindow = 0
+        ribbonMeter = nil
         upper = 0
         lower = 0
         energy = 0
@@ -612,11 +641,13 @@ private final class BassMonitor: @unchecked Sendable {
               format.mFormatFlags & kAudioFormatFlagIsBigEndian == 0,
               format.mSampleRate.isFinite, (8_000...384_000).contains(format.mSampleRate) else { return }
         samplesPerWindow = Int(format.mSampleRate * 0.025)
+        sampleRate = format.mSampleRate
+        ribbonMeter = RibbonBandMeter(rate: sampleRate)
         highCoefficient = Float(1 - exp(-2 * Double.pi * 175 / format.mSampleRate))
         lowCoefficient = Float(1 - exp(-2 * Double.pi * 42 / format.mSampleRate))
     }
 
-    private func process(_ buffers: UnsafeMutablePointer<AudioBufferList>, frames: Int) {
+    private func process(_ buffers: UnsafeMutablePointer<AudioBufferList>, frames: Int, timeRange: CMTimeRange) {
         guard samplesPerWindow > 0, frames > 0 else { return }
         let buffers = UnsafeMutableAudioBufferListPointer(buffers)
         guard let first = buffers.first, let bytes = first.mData, first.mNumberChannels > 0 else { return }
@@ -626,9 +657,19 @@ private final class BassMonitor: @unchecked Sendable {
         let right = buffers.count > 1 ? buffers[1] : nil
         let rightSamples = right?.mNumberChannels == 1 && right?.mDataByteSize == first.mDataByteSize
             ? right?.mData?.assumingMemoryBound(to: Float.self) : nil
+        let epoch = ribbonBuffer.epoch
+        let start = timeRange.start.seconds
+        let duration = timeRange.duration.seconds
+        let hasMediaTime = start.isFinite && start >= 0
+        let timeStep = duration.isFinite && duration > 0 ? duration / Double(frames) : 1 / sampleRate
+        if epoch > 0 { ribbonMeter?.begin(epoch: epoch) }
         for frame in 0..<min(frames, available) {
             let left = samples[frame * stride]
             let other = stride > 1 ? samples[frame * stride + 1] : (rightSamples?[frame] ?? left)
+            if epoch > 0 {
+                let time = hasMediaTime ? start + Double(frame + 1) * timeStep : -1
+                ribbonMeter?.record(left, other, time: time, into: ribbonBuffer)
+            }
             let mixed = (left + other) * 0.5
             guard mixed.isFinite else { continue }
             let sample = max(-1, min(1, mixed))

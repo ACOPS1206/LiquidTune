@@ -18,6 +18,7 @@ Play music from your Jellyfin or Subsonic server, or import audio files directly
 - **Synced lyrics** — Follow timestamped Jellyfin lyrics as they scroll, or tap a line to jump to that part of the song.
 - **Instant Mix** — Start with any song and generate a new queue of related tracks. LiquidTune uses Jellyfin recommendations when available and can also match songs by artist and genre.
 - **Artwork and playback** — The player uses colors from the album cover. Background audio, lock-screen controls, and AirPlay are supported.
+- **Ribbon edge lighting** — Add audio-reactive lighting around the full-screen player, including Lyrics. It starts off. Choose a style in **Settings → Appearance → Edge lighting** or from **… → Edge lighting** in the player.
 
 The screen stays awake while the full-screen player, lyrics, or queue is open.
 

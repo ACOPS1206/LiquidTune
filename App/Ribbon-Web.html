@@ -1,0 +1,1445 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Ribbon · 테두리 비주얼라이저</title>
+<style>
+  :root { font-family: system-ui, sans-serif; color: #edf1fc; background: #090b13; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100svh; display: grid; place-items: center; padding: 32px 22px; background: radial-gradient(ellipse at 50% 38%, #191b22, #0b0c10 76%); }
+  button, select, input { font: inherit; }
+  button, select, .file { border-radius: 10px; border: 1px solid #394156; background: #1b2232; color: inherit; padding: 9px 12px; cursor: pointer; text-align: center; }
+  button:hover, select:hover, .file:hover { background: #262f45; }
+  button:disabled { opacity: .48; cursor: default; }
+  button:focus-visible, select:focus-visible, input:focus-visible, .file:focus-within, summary:focus-visible { outline: 2px solid #a7beff; outline-offset: 3px; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+  main { width: min(100%, 500px); position: relative; z-index: 3; }
+  h1 { margin: 0; font: 500 clamp(3.5rem, 12vw, 5.6rem)/.94 system-ui, sans-serif; letter-spacing: -.085em; }
+  h1 + p { color: #a7b1c8; font-size: .96rem; margin: 15px 1px 28px; }
+  .card { border: 1px solid #303749; background: #111621; box-shadow: 0 18px 60px #0005; border-radius: 18px; padding: 16px; }
+  .actions, .transport, .control, .colors, .timing { display: flex; align-items: center; gap: 8px; }
+  .actions { flex-wrap: wrap; }
+  .file { position: relative; overflow: hidden; background: #c6d5ff; color: #131a30; border-color: #c6d5ff; font-weight: 650; }
+  .file:hover { background: #e1e9ff; }
+  .file input { opacity: 0; position: absolute; inset: 0; width: 100%; cursor: pointer; }
+  .track { margin: 14px 0 8px; min-height: 1.4em; color: #b8c2d9; overflow-wrap: anywhere; font-size: .9rem; }
+  .timing { gap: 10px; font-size: .78rem; font-variant-numeric: tabular-nums; color: #a7b1c8; }
+  .timing input { min-width: 0; flex: 1; }
+  input[type="range"] { accent-color: #a8bfff; }
+  .transport { margin: 8px 0 6px; flex-wrap: wrap; }
+  .transport button { padding: 6px 9px; font-size: .84rem; }
+  details { border-top: 1px solid #303749; margin-top: 14px; padding-top: 13px; }
+  summary { font-size: .9rem; color: #c4cde4; cursor: pointer; }
+  .control { margin-top: 14px; justify-content: space-between; font-size: .86rem; }
+  .control input[type="range"] { width: 57%; }
+  .control select { width: 57%; padding: 6px 8px; }
+  .edges { display: flex; gap: 6px; width: 57%; }
+  .edges label { flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 5px 0; border-radius: 8px; border: 1px solid #394156; background: #1b2232; cursor: pointer; font-size: .82rem; }
+  .edges label:has(input:checked) { background: #2c3a5c; border-color: #6f86c8; }
+  .edges input { margin: 0; accent-color: #a8bfff; }
+  .control[hidden] { display: none; }
+  .delay { width: 57%; display: flex; align-items: center; gap: 8px; }
+  .delay input { flex: 1; min-width: 0; }
+  .delay output { width: 52px; text-align: right; font-variant-numeric: tabular-nums; opacity: 0.75; }
+  .switch { width: 57%; display: flex; }
+  .switch input { width: 18px; height: 18px; margin: 0; accent-color: #a8bfff; }
+  .colors input { padding: 0; width: 30px; height: 29px; border: 0; background: transparent; cursor: pointer; }
+  .colors .art { position: relative; overflow: hidden; font-size: .78rem; padding: 5px 9px; border-radius: 8px; border: 1px solid #394156; background: #1b2232; cursor: pointer; }
+  .colors .art:hover { background: #262f45; }
+  .colors .art:focus-within { outline: 2px solid #a7beff; outline-offset: 3px; }
+  .colors .art input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; }
+  /* Embedded in the macOS app: only the light, on a transparent page. */
+  html.embed, html.embed body { background: transparent !important; }
+  html.embed main, html.embed #show { display: none !important; }
+  .message { min-height: 1.3em; margin: 12px 0 0; font-size: .84rem; color: #b8c2d9; }
+  .message:empty { display: none; }
+  #show { position: fixed; bottom: 23px; right: 23px; z-index: 4; opacity: .55; }
+  #show:hover, #show:focus-visible { opacity: 1; }
+  [hidden] { display: none !important; }
+  @media (max-width: 400px) { body { padding: 24px 14px; } .card { padding: 12px; } button, select, .file { padding: 8px; } }
+</style>
+<canvas id="ribbon" aria-hidden="true"></canvas>
+<main id="panel">
+  <h1>Ribbon</h1>
+  <p>음악에 반응하는 화면 가장자리 조명</p>
+  <section class="card" aria-label="비주얼라이저">
+    <div class="actions">
+      <label class="file">음원 열기<input id="file" type="file" accept="audio/*,video/mp4,.flac,.wav,.m4a,.mp3,.ogg,.opus" aria-label="음원 열기"></label>
+      <select id="mode" aria-label="애니메이션 모드">
+        <option value="music">음악 반응</option>
+        <option value="drift" selected>흐르는 빛</option>
+        <option value="still">정지</option>
+      </select>
+      <button id="fullscreen">전체 화면</button>
+      <button id="hide">패널 숨기기</button>
+    </div>
+    <div id="player" hidden>
+      <div class="track" id="track"></div>
+      <div class="timing">
+        <span id="position">0:00</span>
+        <input id="seek" type="range" min="0" max="1" step="any" value="0" aria-label="재생 위치">
+        <span id="duration">0:00</span>
+      </div>
+      <div class="transport">
+        <button id="play">재생</button>
+        <button id="back">−1 프레임</button>
+        <button id="forward">+1 프레임</button>
+        <span class="timing" id="precise"></span>
+      </div>
+    </div>
+    <details>
+      <summary>테두리 설정</summary>
+      <label class="control">스타일 <select id="style" aria-label="애니메이션 스타일"><option value="ribbon" selected>리본 · 여러 줄</option><option value="orbit">궤도 · 한 줄</option><option value="frame">테두리 · 전체</option><option value="bottom">하단 · 리본</option></select></label>
+      <label class="control" id="followControl">베이스 따라 이동 <span class="switch"><input type="checkbox" id="ribbonFollow" aria-label="리본 전체가 베이스에 따라 이동"></span></label>
+      <div class="control" id="edgeControl">선 위치 <span class="edges" role="group" aria-label="빛이 나타날 변"><label><input type="checkbox" id="edgeTop" checked>상</label><label><input type="checkbox" id="edgeBottom" checked>하</label><label><input type="checkbox" id="edgeLeft" checked>좌</label><label><input type="checkbox" id="edgeRight" checked>우</label></span></div>
+      <label class="control">폭 <input id="width" type="range" min="25" max="180" value="64"></label>
+      <label class="control">두께 <input id="thickness" type="range" min="40" max="250" value="100"></label>
+      <label class="control">중심선 <input id="line" type="range" min="0" max="100" value="70"></label>
+      <label class="control">잔광 <input id="halo" type="range" min="0" max="100" value="60"></label>
+      <label class="control">밝기 <input id="intensity" type="range" min="10" max="100" value="87"></label>
+      <label class="control" title="블루투스 헤드폰처럼 소리가 늦게 들리는 출력에서 빛을 그만큼 늦춥니다">빛 지연 <span class="delay"><input id="delay" type="range" min="0" max="300" step="10" value="0" aria-label="빛 지연 (밀리초)"><output id="delayValue">0 ms</output></span></label>
+      <label class="control">프리셋 <select id="preset" aria-label="색상 프리셋"></select></label>
+      <div class="control">색상 <span class="colors"><label class="art" title="앨범아트 이미지에서 색상 추출">앨범아트<input id="artwork" type="file" accept="image/*" aria-label="앨범아트에서 색상 가져오기"></label><input type="color" id="first" value="#649bff" aria-label="첫 번째 색상"><input type="color" id="second" value="#986ceb" aria-label="두 번째 색상"></span></div>
+    </details>
+    <p class="message" id="status" role="status"></p>
+  </section>
+</main>
+<button id="show" hidden>패널 표시</button>
+<audio id="audio" preload="metadata"></audio>
+<script>
+"use strict";
+
+const byId = id => document.getElementById(id);
+const canvas = byId("ribbon");
+const audio = byId("audio");
+const seek = byId("seek");
+const mode = byId("mode");
+const status = byId("status");
+let needsRedraw = true;
+const prefersReducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+if (prefersReducedMotion.matches) mode.value = "still";
+
+const TAU = Math.PI * 2;
+// Light along the perimeter is sampled at FIELD points per lap. Each sample holds
+// core energy, halo energy, colour mix (0 = first colour, 1 = second) and halo reach.
+const FIELD = 2048;
+
+const vertexSource = `#version 300 es
+void main() {
+  vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));
+  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
+}`;
+
+const fragmentSource = `#version 300 es
+precision highp float;
+precision highp sampler2D;
+#define FIELD ${FIELD}
+uniform sampler2D field;
+uniform vec2 screenSize;
+uniform vec4 shape;   // x: glow depth W (px), y: line width (px), z: corner softness (px), w: brightness
+uniform vec4 mixing;  // x: line gain, y: halo gain, z: halo reach (× W), w: exposure
+uniform vec3 colorA;  // linear RGB
+uniform vec3 colorB;
+out vec4 pixel;
+
+// Row 0: core energy, halo energy, colour mix, halo reach. Row 1: line thickness.
+vec4 fieldAt(float s, int row) {
+  float x = fract(s) * float(FIELD);
+  int i = int(x);
+  vec4 a = texelFetch(field, ivec2(i % FIELD, row), 0);
+  vec4 b = texelFetch(field, ivec2((i + 1) % FIELD, row), 0);
+  return mix(a, b, x - float(i));
+}
+
+vec3 encode(vec3 c) {
+  return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c));
+}
+
+void main() {
+  float w = screenSize.x, h = screenSize.y;
+  vec2 p = vec2(gl_FragCoord.x, h - gl_FragCoord.y);
+  float W = shape.x;
+  float mx = min(p.x, w - p.x);
+  float my = min(p.y, h - p.y);
+  float nearest = min(mx, my);
+  if (nearest > W * 1.5) discard;
+
+  // Depth from the display edge: a soft minimum of both margins whose softness grows with
+  // depth, so every iso-depth line turns a corner on a curve. No diagonal crease, and no
+  // doubled light where two sides meet. At the edge itself the corner is gently rounded.
+  float soft = shape.z + 0.3 * nearest;
+  float depth = nearest - soft * log(1.0 + exp(-abs(mx - my) / soft));
+  float coverage = clamp(depth + 0.5, 0.0, 1.0);
+  float d = max(depth, 0.0);
+
+  // Perimeter coordinate in laps, clockwise from the top-left corner. Near a corner the two
+  // side coordinates are blended by angle, so light crossing it keeps direction and colour.
+  float perimeter = 2.0 * (w + h);
+  bool right = p.x > w * 0.5;
+  bool bottom = p.y > h * 0.5;
+  float alongTopBottom = bottom ? 2.0 * w + h - p.x : p.x;
+  float alongSides = right ? w + p.y : (bottom ? perimeter - p.y : -p.y);
+  float toTopBottom = 1.0 / (1.0 + exp(clamp((my - mx) / (shape.z + 0.8 * nearest), -40.0, 40.0)));
+  float s = mix(alongSides, alongTopBottom, toTopBottom) / perimeter;
+
+  vec4 light = fieldAt(s, 0);
+  float thickness = fieldAt(s, 1).r;
+  float u = d / W;
+  // Line: a band with a crisp inner edge, hugging the display edge. Its thickness swells and
+  // thins along the edge, and it tapers where the light fades, like a ribbon or a brush stroke.
+  // Body: a soft Gaussian shoulder (the reference's linear-light cross-section, 0.125 W) that
+  // follows the thickness partly. Halo: the long tail.
+  float lineWidth = shape.y * thickness;
+  float filament = 1.0 / (1.0 + exp((d - lineWidth) / (0.1 * shape.y)));
+  float bodyWidth = 0.125 * (0.65 + 0.35 * thickness);
+  float body = 0.22 * exp(-(u * u) / (bodyWidth * bodyWidth));
+  float halo = exp(-u / (mixing.z * light.a));
+  float fade = 1.0 - smoothstep(0.6, 1.45, u);
+  float coreEnergy = light.r * (mixing.x * filament + body);
+  float energy = (coreEnergy + mixing.y * light.g * halo) * fade * coverage * shape.w;
+
+  // Light is mixed in linear RGB, tone-mapped on its energy (so the hue stays saturated) and
+  // only the hottest filament lifts towards white.
+  vec3 color = mix(colorA, colorB, clamp(light.b, 0.0, 1.0));
+  float level = 1.0 - exp(-mixing.w * energy);
+  // The band is drawn in a richer shade of the chosen colour; faint light (thin tails, the
+  // outer glow) goes deeper still.
+  vec3 deep = color * color / max(max(color.r, color.g), max(color.b, 1e-4));
+  color = mix(deep, color, 0.65 * smoothstep(0.12, 0.75, level));
+  float hot = smoothstep(1.2, 2.4, coreEnergy * shape.w) * filament;
+  vec3 linear = level * mix(color, vec3(1.0), 0.12 * hot);
+  vec3 encoded = encode(clamp(linear, 0.0, 1.0));
+  pixel = vec4(encoded, max(encoded.r, max(encoded.g, encoded.b)));
+}`;
+
+// Feature layout returned by featuresAt: band levels, overall presence, four bounded sway
+// signals (−1…1: springs kicked by the low, mid and high bands, and a slow section shift), and
+// the bass punch (0…~1.2): how far the bass has just jumped above its recent level, and the
+// orbit style's travelled distance (laps, only grows) and speed (laps per second).
+const LOW = 0, MID = 1, HIGH = 2, ONSET = 3, PRESENCE = 4, SWAY = 5, PUNCH = 9, ORBIT = 10, ORBIT_SPEED = 11, F_STRIDE = 12;
+const S_LOW = 0, S_MID = 1, S_HIGH = 2, S_SECTION = 3;
+const FOLLOW = -1; // hue: follow the colour gradient around the edge
+
+// Layers of light along the perimeter. Positions are in laps. `speed` (laps per second) is
+// Ribbon's original travel, used in the flowing-light mode. In music mode nothing circles the
+// screen: each layer wanders on a few sines (`wander` = [[amplitude, period]...], the slowest
+// sweeps it across a good part of the edge over a minute or two and back) and is pushed back
+// and forth by the music (`sway` = [[signal, laps]...]). Every path reverses; none keeps circling.
+// `core`/`halo` = [base, [band, amount]...]. The two `arc` layers are Ribbon's lead/wake and
+// opposite packets; they also form the envelope that dims everything far from them.
+const LAYERS = [
+  { arc: true, start: 0.17, speed: -1 / 12, wobble: true, wander: [[0.45, 97], [0.12, 13], [0.04, 5.3]], sway: [[S_LOW, 0.05], [S_MID, 0.08], [S_SECTION, 0.07]],
+    neg: 0.04, pos: 0.11, core: [0.5, [MID, 0.75]], fine: 0.35,
+    lag: 0.06, haloNeg: 0.07, haloPos: 0.1, halo: [0.12, [LOW, 0.35]], hue: 0.06, reach: [1, [LOW, 0.12]], breathe: [11, 0.12] },
+  { arc: true, start: 0.65, speed: 1 / 20, wander: [[0.45, 113], [0.12, 17], [0.04, 6.1]], sway: [[S_LOW, -0.04], [S_MID, -0.07], [S_SECTION, -0.07]],
+    neg: 0.085, pos: 0.045, core: [0.36, [MID, 0.3], [HIGH, 0.25]], swell: 0.45,
+    lag: -0.025, haloNeg: 0.09, haloPos: 0.06, halo: [0.08, [MID, 0.15]], hue: 0.94, reach: [0.9], breathe: [17, 0.18] },
+  { start: 0.40, speed: -1 / 3.6, wander: [[0.35, 47], [0.2, 11], [0.08, 3.3]], sway: [[S_HIGH, 0.05]],
+    neg: 0.024, pos: 0.053, core: [0.07, [HIGH, 0.95]],
+    lag: 0.02, haloNeg: 0.03, haloPos: 0.08, halo: [0.02, [HIGH, 0.15]], hue: FOLLOW, reach: [0.6], breathe: [5, 0.2] },
+  { start: 0.55, speed: -1 / 5.1, wander: [[0.3, 53], [0.18, 9], [0.07, 2.9]], sway: [[S_HIGH, -0.04]],
+    neg: 0.01, pos: 0.028, core: [0.04, [HIGH, 0.75]], pulse: [3.7, 0.6],
+    lag: 0.01, haloNeg: 0.02, haloPos: 0.04, halo: [0.01, [HIGH, 0.08]], hue: FOLLOW, reach: [0.5] },
+  { start: 0.08, speed: 1 / 6.7, wander: [[0.3, 61], [0.18, 13], [0.07, 3.7]], sway: [[S_HIGH, 0.035]],
+    neg: 0.022, pos: 0.01, core: [0.04, [HIGH, 0.7]], pulse: [5.3, 0.6],
+    lag: -0.01, haloNeg: 0.04, haloPos: 0.02, halo: [0.01, [HIGH, 0.08]], hue: FOLLOW, reach: [0.5] },
+  { start: 0.05, speed: -1 / 27, wander: [[0.4, 89], [0.1, 19]], sway: [[S_LOW, 0.04], [S_SECTION, 0.04]],
+    neg: 0.06, pos: 0.07, core: [0.04, [LOW, 0.12]], fine: 0.2,
+    lag: 0, haloNeg: 0.09, haloPos: 0.09, halo: [0.03, [LOW, 0.35]], hue: 0.3, reach: [1.1, [LOW, 0.15]], breathe: [23, 0.25] },
+  { start: 0.55, speed: 1 / 31, wander: [[0.4, 107], [0.1, 23]], sway: [[S_LOW, -0.035], [S_SECTION, -0.04]],
+    neg: 0.07, pos: 0.055, core: [0.03, [LOW, 0.1]],
+    lag: 0, haloNeg: 0.1, haloPos: 0.08, halo: [0.025, [LOW, 0.3]], hue: 0.7, reach: [1.15, [LOW, 0.15]], breathe: [19, 0.25] },
+  { start: 0.90, speed: -1 / 7.3, wander: [[0.3, 71], [0.15, 7]], sway: [[S_LOW, 0.05]],
+    neg: 0.012, pos: 0.03, core: [0.04, [ONSET, 1.3]],
+    lag: 0.025, haloNeg: 0.02, haloPos: 0.05, halo: [0.02, [ONSET, 0.5]], hue: 0.2, reach: [0.7] },
+  { start: 0.30, speed: -1 / 9.5, wander: [[0.3, 79], [0.15, 9]], sway: [[S_LOW, -0.045]],
+    neg: 0.014, pos: 0.035, core: [0.05, [ONSET, 1.1]],
+    lag: 0.02, haloNeg: 0.02, haloPos: 0.05, halo: [0.02, [ONSET, 0.4]], hue: 0.8, reach: [0.7] },
+  { start: 0.78, speed: -1 / 16, wander: [[0.35, 67], [0.12, 8]], sway: [[S_MID, 0.04], [S_HIGH, 0.02]],
+    neg: 0.02, pos: 0.05, core: [0.06, [ONSET, 0.3], [HIGH, 0.1]], swell: 0.4,
+    lag: 0.015, haloNeg: 0.04, haloPos: 0.07, halo: [0.04, [HIGH, 0.08]], hue: FOLLOW, reach: [0.65], breathe: [9, 0.3] }
+];
+// The two arc layers (they also shape the envelope).
+const ARCS = LAYERS.flatMap((k, i) => k.arc ? [i] : []);
+// Sparks: each transient event launches a short streak from one of the arcs; it runs a short
+// distance, fades within about a second and never laps the screen.
+const SPARK_LIFE = 1.0, SPARK_LIMIT = 12;
+// Bass: every kick (a jump in the bass punch) sends two pulses out from an arc, one each way;
+// they swell the band as they pass and settle within about 0.7 s.
+const RIPPLE_LIFE = 0.7, RIPPLE_LIMIT = 6;
+const AMBIENT_CORE = 0.02, AMBIENT_HALO = 0.002, CONTRAST = 2.0;
+// Envelope: lowest level far from both arcs (quiet edge), by mode.
+const ENVELOPE_FLOOR_MUSIC = 0.25, ENVELOPE_FLOOR_DRIFT = 0.55;
+
+const field = new Float32Array(FIELD * 4 * 2);
+const work = { core: new Float32Array(FIELD), halo: new Float32Array(FIELD), hue: new Float32Array(FIELD),
+  hueWeight: new Float32Array(FIELD), reach: new Float32Array(FIELD), reachWeight: new Float32Array(FIELD),
+  base: new Float32Array(FIELD), fine: new Float32Array(FIELD), swell: new Float32Array(FIELD),
+  texture: new Float32Array(FIELD), envelope: new Float32Array(FIELD),
+  near: new Float32Array(FIELD), boost: new Float32Array(FIELD) };
+const wrap = x => x - Math.floor(x);
+const centres = new Float64Array(LAYERS.length);
+const raw = new Float64Array(LAYERS.length), layerFade = new Float64Array(LAYERS.length);
+const BOTTOM_EDGES = [false, true, true, true];
+
+function level(spec, f, presence) {
+  let value = spec[0] * presence;
+  for (let i = 1; i < spec.length; i++) value += spec[i][1] * f[spec[i][0]];
+  return value;
+}
+
+function lobe(s, centre, neg, pos) {
+  let o = s - centre;
+  o -= Math.round(o);
+  const a = o / (o < 0 ? neg : pos);
+  return Math.exp(-a * a);
+}
+
+// Add an asymmetric lobe centred at `centre`, weighted by `gain` × modulate[j], via add(j, v).
+// Field indices a lobe reaches (k may run past either end; wrap with (k % FIELD + FIELD) % FIELD).
+function lobeRange(centre, neg, pos) {
+  const first = Math.floor((centre - 3.2 * neg) * FIELD), last = Math.ceil((centre + 3.2 * pos) * FIELD);
+  return last - first >= FIELD ? [0, FIELD - 1] : [first, last];
+}
+
+function splat(add, centre, neg, pos, gain, modulate) {
+  if (gain <= 0) return;
+  const [first, last] = lobeRange(centre, neg, pos);
+  const whole = last - first >= FIELD - 1;
+  for (let k = first; k <= last; k++) {
+    const j = ((k % FIELD) + FIELD) % FIELD;
+    // Within a partial range k / FIELD − centre is already the signed offset (same as lobe()).
+    let o = (whole ? j : k) / FIELD - centre;
+    if (whole) o -= Math.round(o);
+    const a = o / (o < 0 ? neg : pos);
+    const v = gain * Math.exp(-a * a) * (modulate ? modulate[j] : 1);
+    if (v > 1e-5) add(j, v);
+  }
+}
+
+function position(k, i, t, f, reactive, calm, motion) {
+  if (!reactive) return wrap(k.start + k.speed * t + (k.wobble ? motion : 0));
+  let offset = 0;
+  k.wander.forEach(([amount, period], c) => { offset += amount * Math.sin(TAU * (t / period + i * 0.37 + c * 0.23)); });
+  for (const [signal, laps] of k.sway) offset += calm * laps * f[SWAY + signal];
+  return wrap(k.start + offset + (k.wobble ? motion : 0));
+}
+
+const hash = n => wrap(Math.sin(n * 12.9898 + 78.233) * 43758.5453);
+
+// `events` = { times, strengths, now }: event times and the current clock on the same time axis.
+function addSparks(events, add) {
+  const { times, strengths } = events, t = events.now;
+  let hi = times.length;
+  for (let lo = 0; lo < hi;) { const m = (lo + hi) >> 1; if (times[m] <= t) lo = m + 1; else hi = m; }
+  for (let n = hi - 1; n >= 0 && n >= hi - SPARK_LIMIT; n--) {
+    const age = t - times[n];
+    if (age > SPARK_LIFE) break;
+    const strength = strengths[n];
+    const direction = hash(n + 0.5) < 0.5 ? -1 : 1;
+    const origin = centres[n % 2] + (hash(n) - 0.5) * 0.06;
+    const centre = wrap(origin + direction * (0.05 + 0.1 * strength) * (1 - Math.exp(-age / 0.18)));
+    const gain = 0.8 * strength * Math.exp(-age / 0.3) * Math.min(1, age / 0.02);
+    const trail = 0.012 + 0.025 * Math.min(1, age / 0.15), head = 0.008;
+    add(centre, direction > 0 ? trail : head, direction > 0 ? head : trail, gain);
+  }
+}
+
+// Kick pulses: `events.kickTimes/kickStrengths` on the same time axis as `events.now`.
+function addRipples(events, add) {
+  const times = events.kickTimes, strengths = events.kickStrengths, t = events.now;
+  if (!times) return;
+  let hi = times.length;
+  for (let lo = 0; lo < hi;) { const m = (lo + hi) >> 1; if (times[m] <= t) lo = m + 1; else hi = m; }
+  for (let n = hi - 1; n >= 0 && n >= hi - RIPPLE_LIMIT; n--) {
+    const age = t - times[n];
+    if (age > RIPPLE_LIFE) break;
+    const strength = strengths[n];
+    const origin = centres[n % 2];
+    const distance = (0.04 + 0.12 * strength) * (1 - Math.exp(-age / 0.22));
+    const gain = 0.75 * strength * Math.exp(-age / 0.25) * Math.min(1, age / 0.015);
+    const trail = 0.012 + 0.03 * Math.min(1, age / 0.12), head = 0.01;
+    add(wrap(origin + distance), trail, head, gain);
+    add(wrap(origin - distance), head, trail, gain);
+  }
+}
+
+// Everything that moves is a pure function of (time, features at that time). Positions are
+// computed in double precision and wrapped, so long tracks neither lose precision nor jump.
+// Which edges the ribbon style may use, and the screen's proportions. Edges in perimeter
+// order: top, right, bottom, left; `top` is the top edge's share of the perimeter (w / 2(w+h)).
+const geometry = { edges: [true, true, true, true], top: 0.3, mask: new Float32Array(FIELD), key: "", follow: false };
+
+function edgeSpans() {
+  const a = geometry.top;
+  return [[0, a], [a, 0.5], [0.5, 0.5 + a], [0.5 + a, 1]];
+}
+
+// Positions are computed on a virtual loop made of the enabled edges only, then mapped back
+// to the real edge, so lines stay on the chosen sides. Adjacent edges join at their corner;
+// between non-adjacent ones the light leaves one side and enters the next.
+function toReal(u) {
+  const spans = edgeSpans(), on = geometry.edges;
+  let total = 0;
+  for (let e = 0; e < 4; e++) if (on[e]) total += spans[e][1] - spans[e][0];
+  let x = wrap(u) * total;
+  for (let e = 0; e < 4; e++) {
+    if (!on[e]) continue;
+    const length = spans[e][1] - spans[e][0];
+    if (x < length) return spans[e][0] + x;
+    x -= length;
+  }
+  return u;
+}
+
+// 1 on enabled edges, 0 elsewhere, fading over 0.012 lap where an enabled edge meets a
+// disabled one (no fade where two enabled edges meet at a corner).
+function edgeMask() {
+  const key = geometry.edges.join() + geometry.top.toFixed(4);
+  if (key === geometry.key) return geometry.mask;
+  geometry.key = key;
+  const spans = edgeSpans(), on = geometry.edges, fade = 0.012;
+  const ramp = x => x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x);
+  for (let j = 0; j < FIELD; j++) {
+    const s = (j + 0.5) / FIELD;
+    const e = spans.findIndex(([a, b]) => s >= a && s < b);
+    if (!on[e]) { geometry.mask[j] = 0; continue; }
+    let m = 1;
+    if (!on[(e + 3) % 4]) m *= ramp((s - spans[e][0]) / fade);
+    if (!on[(e + 1) % 4]) m *= ramp((spans[e][1] - s) / fade);
+    geometry.mask[j] = m;
+  }
+  return geometry.mask;
+}
+
+function toVirtual(s) {
+  const spans = edgeSpans(), on = geometry.edges;
+  let before = 0, total = 0, at = 0;
+  for (let e = 0; e < 4; e++) {
+    const length = spans[e][1] - spans[e][0];
+    if (s >= spans[e][0] && s < spans[e][1]) at = before + (on[e] ? s - spans[e][0] : 0);
+    if (on[e]) { before += length; total += length; }
+  }
+  return total > 0 ? at / total : s;
+}
+
+const virtualField = new Float32Array(FIELD * 8);
+function restrictToEdges(remap) {
+  const mask = edgeMask();
+  if (remap) virtualField.set(field);
+  for (let j = 0; j < FIELD; j++) {
+    const o = j * 4, m = mask[j];
+    if (remap) {
+      const x = toVirtual((j + 0.5) / FIELD) * FIELD - 0.5;
+      const i = Math.floor(x), w = x - i;
+      const a = ((i % FIELD) + FIELD) % FIELD * 4, b = ((i + 1) % FIELD + FIELD) % FIELD * 4;
+      for (const row of [0, FIELD * 4]) {
+        for (let c = 0; c < 4; c++) field[row + o + c] = virtualField[row + a + c] * (1 - w) + virtualField[row + b + c] * w;
+      }
+    }
+    field[o] *= m;
+    field[o + 1] *= m;
+  }
+}
+
+// Orbit style: one long line circling the edge, as in the reference recording. Its head runs
+// against the clockwise coordinate; the body follows as a plateau that stretches when the line
+// surges and fades towards the tail. Colour runs from the first colour at the head to the
+// second at the tail. Bass punch thickens and brightens it; sparks fly off the head.
+function computeOrbitField(t, f, reactive, calm, events) {
+  const presence = reactive ? 0.45 + 0.55 * f[PRESENCE] : 1;
+  const punch = reactive ? f[PUNCH] : 0;
+  const travelled = reactive ? calm * f[ORBIT] : 0.08 * t;
+  const speed = reactive ? f[ORBIT_SPEED] : 0.08;
+  const head = wrap(0.17 - travelled);
+  // Longer body; surges stretch it only a little.
+  const length = 0.46 + 0.1 * Math.min(1, speed / 0.9) + 0.03 * punch;
+  const brightness = (0.55 + 0.45 * f[MID]) * presence + 0.4 * punch;
+  const { core, halo, hue, hueWeight, reach, reachWeight, boost } = work;
+  centres.fill(head);
+  for (let j = 0; j < FIELD; j++) {
+    let d = j / FIELD - head;
+    d -= Math.floor(d);
+    if (d > 0.9) d -= 1;   // ahead of the head
+    // The line starts crisply at the head; its glow fades in over a longer stretch ahead of it,
+    // so the glow never ends in a straight wall across the edge.
+    const rise = d < 0 ? Math.exp(-((d / 0.007) ** 2)) : 1;
+    const glowRise = d < 0 ? Math.exp(-((d / 0.03) ** 2)) : 1;
+    const x = Math.max(0, d) / length;
+    const fade = x < 0.55 ? 1 : x >= 1 ? 0 : 1 - (u => u * u * (3 - 2 * u))((x - 0.55) / 0.45);
+    const flare = 0.35 * Math.exp(-((d / 0.02) ** 2));
+    const value = brightness * (rise * fade + flare);
+    core[j] = 0.004 * presence + value;
+    halo[j] = brightness * (glowRise * fade + flare) * (0.35 + 0.5 * f[LOW] + 0.4 * punch);
+    hue[j] = Math.min(1, Math.max(0, x));
+    hueWeight[j] = 1;
+    reach[j] = 1 + 0.2 * punch;
+    reachWeight[j] = 1;
+    boost[j] = 0;
+  }
+  if (reactive && events) {
+    const quieter = { ...events, strengths: Array.from(events.strengths, v => 0.6 * v) };
+    addSparks(quieter, (centre, neg, pos, gain) => splat((j, v) => { core[j] += v; }, centre, neg, pos, gain, null));
+  }
+  for (let j = 0; j < FIELD; j++) {
+    const o = j * 4;
+    field[o] = core[j];
+    field[o + 1] = halo[j];
+    field[o + 2] = hue[j] / hueWeight[j];
+    field[o + 3] = reach[j] / reachWeight[j];
+    const c = field[o], x = j / FIELD;
+    const taper = Math.sqrt(c / (c + 0.15));
+    const wave = 1 + 0.25 * Math.sin(TAU * 6 * (x - head));
+    field[FIELD * 4 + o] = Math.min(2.4, Math.max(0.3, (0.45 + 0.8 * taper) * wave * (1 + 0.55 * punch)));
+  }
+}
+
+// Height of a perimeter point: 0 on the bottom edge, rising up the sides, 1 on the top edge.
+function heightAt(s) {
+  const a = geometry.top, side = 0.5 - a;
+  if (s < a) return 1;
+  if (s < 0.5) return 1 - (s - a) / side;
+  if (s < 0.5 + a) return 0;
+  return (s - 0.5 - a) / side;
+}
+
+// The music by height: bass at the bottom, mids halfway up, highs at the top (y in 0…1).
+function bandAt(y, low, mid, high) {
+  return y < 0.5 ? low + (mid - low) * (y / 0.5) : mid + (high - mid) * ((y - 0.5) / 0.5);
+}
+
+// Frame style: one continuous line around the whole edge. The music is laid out by height: the
+// bottom edge answers the bass, the sides the mids as they rise, the top edge the highs (with a
+// fine shimmer); bass punch lifts the lower part. Two colour waves sway back and forth, three
+// slow swells wander, and each kick sends two pulses out from a wandering point.
+function computeFrameField(t, f, reactive, calm, events) {
+  const presence = reactive ? 0.45 + 0.55 * f[PRESENCE] : 1;
+  const punch = reactive ? f[PUNCH] : 0;
+  const mid = reactive ? f[MID] : 0.35, high = reactive ? f[HIGH] : 0, low = reactive ? f[LOW] : 0.2;
+  const colourPhase = reactive ? 0.3 * Math.sin(TAU * t / 41) + 0.06 * calm * f[SWAY + S_MID] : t / 30;
+  const swellPhase = reactive ? 0.25 * Math.sin(TAU * t / 23 + 1) + 0.05 * calm * f[SWAY + S_LOW] : -t / 17;
+  const shimmerPhase = reactive ? 0.5 * Math.sin(TAU * t / 7) : t / 5;
+  const { core, halo, hue, hueWeight, reach, reachWeight, boost, texture: shape } = work;
+  // Kick pulses start from two opposite points that wander slowly.
+  centres[0] = wrap(0.2 + 0.25 * Math.sin(TAU * t / 13));
+  centres[1] = wrap(centres[0] + 0.5);
+  for (let j = 0; j < FIELD; j++) {
+    const s = j / FIELD;
+    const swell = 0.5 + 0.5 * Math.cos(TAU * (3 * s - swellPhase));
+    const drift = 0.5 + 0.5 * Math.cos(TAU * (2 * s + 0.7 * swellPhase + 0.3));
+    const shimmer = 0.5 + 0.5 * Math.sin(TAU * (23 * s - shimmerPhase));
+    // Bass lights the bottom, mids the sides, highs the top; the punch and the shimmer follow.
+    const y = heightAt(s), band = bandAt(y, low, mid, high);
+    const level = presence * (0.3 + 0.1 * swell + 0.1 * drift) + 0.6 * band + 0.3 * punch * (1 - y) + 0.25 * high * shimmer * y;
+    core[j] = level;
+    halo[j] = level * (0.35 + 0.4 * band);
+    const g = 0.5 + 0.5 * Math.cos(TAU * (2 * s + colourPhase));
+    hue[j] = g * g * (3 - 2 * g);
+    hueWeight[j] = 1;
+    reach[j] = 1 + 0.15 * punch;
+    reachWeight[j] = 1;
+    boost[j] = 0;
+    shape[j] = 0.75 + 0.3 * swell * mid + 0.4 * band + 0.3 * punch * (1 - y);
+  }
+  if (reactive && events) {
+    addRipples(events, (centre, neg, pos, gain) => splat((j, v) => { core[j] += v; boost[j] += v; }, centre, neg, pos, gain, null));
+    const quieter = { ...events, strengths: Array.from(events.strengths, v => 0.5 * v) };
+    addSparks(quieter, (centre, neg, pos, gain) => splat((j, v) => { core[j] += v; }, centre, neg, pos, gain, null));
+  }
+  for (let j = 0; j < FIELD; j++) {
+    const o = j * 4;
+    field[o] = core[j];
+    field[o + 1] = halo[j];
+    field[o + 2] = hue[j] / hueWeight[j];
+    field[o + 3] = reach[j] / reachWeight[j];
+    const c = field[o], taper = Math.sqrt(c / (c + 0.15));
+    field[FIELD * 4 + o] = Math.min(2.4, Math.max(0.3, (0.45 + 0.8 * taper) * shape[j] * (1 + 0.8 * Math.min(1, boost[j]))));
+  }
+}
+
+function computeField(t, f, reactive, calm = 1, events = null, style = "ribbon") {
+  // Bottom style: the ribbon without the top edge, its lead arc held at the bottom centre.
+  const anchored = style === "bottom";
+  if (anchored) geometry.edges = BOTTOM_EDGES;
+  if (style === "orbit" || style === "frame") {
+    (style === "orbit" ? computeOrbitField : computeFrameField)(t, f, reactive, calm, events);
+    // On chosen edges only: the orbit runs on the virtual loop of those edges; the frame is cut.
+    if (!geometry.edges.every(Boolean)) restrictToEdges(style === "orbit");
+    return;
+  }
+  const presence = reactive ? 0.45 + 0.55 * f[PRESENCE] : 1;
+  const motion = 0.029 * Math.sin(TAU * t / 15) + 0.012 * Math.sin(TAU * t / 9);
+  const floor = reactive ? ENVELOPE_FLOOR_MUSIC : ENVELOPE_FLOOR_DRIFT;
+  const { core, halo, hue, hueWeight, reach, reachWeight, base, fine, swell, texture, envelope, near: nearArc, boost } = work;
+  const punch = reactive ? f[PUNCH] : 0;
+  const allEdges = geometry.edges.every(Boolean);
+  const place = allEdges ? (u => u) : toReal;
+  // Optionally the whole ribbon is carried along by the bass, like the orbit style: every
+  // layer (and the cuts) shifts by the orbit's travelled distance.
+  const carried = reactive && geometry.follow && !anchored ? -calm * f[ORBIT] : 0;
+  LAYERS.forEach((k, i) => { raw[i] = position(k, i, t, f, reactive, calm, motion) + carried; });
+  LAYERS.forEach((k, i) => {
+    if (!anchored) { centres[i] = place(raw[i]); layerFade[i] = 1; return; }
+    // Every layer keeps its offset from the lead arc, which sits at the bottom centre (0.5 on the
+    // loop of right, bottom and left edges). The loop is shorter than a lap, so offsets are
+    // scaled by 0.8; layers near the far side (the missing top) fade out instead of jumping ends.
+    let d = raw[i] - raw[0];
+    d -= Math.round(d);
+    centres[i] = place(0.5 + 0.8 * d);
+    const x = Math.min(1, Math.max(0, (Math.abs(d) - 0.4) / 0.1));
+    layerFade[i] = 1 - x * x * (3 - 2 * x);
+  });
+  const lead = wrap(raw[0]);
+  // Texture and colour phases: Ribbon's slow drift in flowing-light mode, bounded in music mode.
+  const finePhase = reactive ? 0.4 * Math.sin(TAU * t / 37) : t / 20;
+  const warpPhase = reactive ? 0.3 * Math.sin(TAU * t / 29) : t / 30;
+  const swellPhase = reactive ? 0.5 * Math.sin(TAU * t / 23) : t / 9;
+  // (Driven by the lead arc's own travel, so they keep moving when it is held in place.)
+  const huePhase = reactive ? LAYERS[0].start - lead : t / 30;
+  let thicknessPhase = reactive ? lead - LAYERS[0].start : -t / 14;
+  thicknessPhase -= Math.round(thicknessPhase);
+  for (let j = 0; j < FIELD; j++) {
+    const s = j / FIELD;
+    fine[j] = 0.5 + 0.5 * Math.sin(TAU * (7 * s + finePhase + 0.15 * Math.sin(TAU * (3 * s - warpPhase))));
+    swell[j] = 0.5 + 0.5 * Math.sin(TAU * (3 * s - swellPhase));
+    // Ribbon's colour gradient; in music mode it follows the lead arc.
+    const g = 0.5 + 0.5 * Math.cos(TAU * (s + huePhase + 0.16 * fine[j]));
+    base[j] = g <= 0.08 ? 0 : g >= 0.91 ? 1 : (x => x * x * (3 - 2 * x))((g - 0.08) / 0.83);
+    let near = 0;
+    for (const i of ARCS) near = Math.max(near, lobe(s, centres[i], 2.2 * LAYERS[i].neg, 2.2 * LAYERS[i].pos));
+    envelope[j] = floor + (1 - floor) * near;
+    nearArc[j] = near;
+    boost[j] = 0;
+    core[j] = AMBIENT_CORE * presence;
+    halo[j] = AMBIENT_HALO * presence;
+    hue[j] = 0.15 * base[j];
+    hueWeight[j] = 0.15;
+    reach[j] = 0.15;
+    reachWeight[j] = 0.15;
+  }
+  LAYERS.forEach((k, i) => {
+    const breathe = k.breathe ? 1 + k.breathe[1] * Math.sin(TAU * (t / k.breathe[0] + i * 0.37)) : 1;
+    const pulse = k.pulse ? 1 - k.pulse[1] * (0.5 + 0.5 * Math.sin(TAU * (t / k.pulse[0] + i * 0.21))) : 1;
+    const centre = centres[i];
+    // The arcs answer the bass punch: brighter, a little longer, a stronger and wider glow.
+    const kick = k.arc ? punch : 0;
+    const coreGain = (level(k.core, f, presence) * pulse + 0.45 * kick) * layerFade[i];
+    const haloGain = (level(k.halo, f, presence) * pulse + 0.55 * kick) * layerFade[i];
+    const layerReach = level(k.reach, f, 1) + 0.25 * kick;
+    const stretch = breathe * (1 + 0.3 * (k.core[1] ? f[k.core[1][0]] : 0)) * (1 + 0.25 * kick);
+    const fineAmount = k.fine || 0, swellAmount = k.swell || 0;
+    const [first, last] = lobeRange(centre, k.neg * stretch, k.pos * stretch);
+    for (let n = first; n <= last; n++) {
+      const j = ((n % FIELD) + FIELD) % FIELD;
+      texture[j] = (1 - fineAmount + fineAmount * fine[j]) * (1 - swellAmount + swellAmount * swell[j])
+        * (k.arc ? 1 : envelope[j]);
+    }
+    splat((j, v) => {
+      core[j] += v;
+      const h = k.hue === FOLLOW ? base[j] : k.hue;
+      hue[j] += v * h;
+      hueWeight[j] += v;
+    }, centre, k.neg * stretch, k.pos * stretch, coreGain, texture);
+    splat((j, v) => {
+      halo[j] += v;
+      reach[j] += v * layerReach;
+      reachWeight[j] += v;
+      const h = k.hue === FOLLOW ? base[j] : k.hue;
+      hue[j] += 0.5 * v * h;
+      hueWeight[j] += 0.5 * v;
+    }, wrap(centre + k.lag), k.haloNeg * breathe, k.haloPos * breathe, haloGain, k.arc ? null : envelope);
+  });
+  if (reactive && events) {
+    addSparks(events, (centre, neg, pos, gain) => splat((j, v) => {
+      core[j] += v;
+      hue[j] += v * base[j];
+      hueWeight[j] += v;
+    }, centre, neg, pos, gain, null));
+    addRipples(events, (centre, neg, pos, gain) => splat((j, v) => {
+      core[j] += v;
+      boost[j] += v;
+      hue[j] += v * base[j];
+      hueWeight[j] += v;
+    }, centre, neg, pos, gain, null));
+  }
+  if (!allEdges) {
+    const mask = edgeMask();
+    for (let j = 0; j < FIELD; j++) { core[j] *= mask[j]; halo[j] *= mask[j]; }
+  }
+  for (let j = 0; j < FIELD; j++) {
+    const o = j * 4;
+    // Expand contrast along the edge: strong segments keep their level, weak ones recede.
+    field[o] = CONTRAST === 2 ? core[j] * core[j] : Math.pow(core[j], CONTRAST);
+    // Glow mostly accompanies a visible band; on its own it stays faint.
+    field[o + 1] = halo[j] * (0.3 + 0.7 * Math.sqrt(field[o] / (field[o] + 0.15)));
+    field[o + 2] = hue[j] / hueWeight[j];
+    field[o + 3] = Math.max(0.4, reach[j] / reachWeight[j]);
+    // Thickness: thin where the light is faint (tapered ends), and a slow wave that swells and
+    // thins the band along the edge (6 and 9 bulges per lap), riding with the lead arc. Bass
+    // swells the band around the arcs, and kick pulses swell it where they pass.
+    const c = field[o], x = j / FIELD;
+    const taper = Math.sqrt(c / (c + 0.15));
+    const wave = 1 + 0.38 * Math.sin(TAU * 6 * (x - thicknessPhase)) + 0.18 * Math.sin(TAU * (9 * x + 4 * thicknessPhase + 0.6));
+    const bass = (1 + 0.55 * punch * nearArc[j]) * (1 + 0.8 * Math.min(1, boost[j]));
+    field[FIELD * 4 + o] = Math.min(2.4, Math.max(0.3, (0.35 + 0.9 * taper) * wave * bass));
+  }
+}
+
+function initRenderer() {
+  const gl = canvas.getContext("webgl2", { alpha: true, antialias: false, premultipliedAlpha: true, powerPreference: "low-power" });
+  if (!gl) throw new Error("이 브라우저에서 WebGL 2를 사용할 수 없습니다.");
+  function compile(type, source) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(shader));
+    return shader;
+  }
+  const program = gl.createProgram();
+  gl.attachShader(program, compile(gl.VERTEX_SHADER, vertexSource));
+  gl.attachShader(program, compile(gl.FRAGMENT_SHADER, fragmentSource));
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
+  gl.useProgram(program);
+  const uniform = Object.fromEntries(
+    ["field", "screenSize", "shape", "mixing", "colorA", "colorB"].map(name => [name, gl.getUniformLocation(program, name)])
+  );
+  const texture = gl.createTexture();
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, FIELD, 2, 0, gl.RGBA, gl.FLOAT, field);
+  gl.uniform1i(uniform.field, 0);
+  const scale = () => Math.min(devicePixelRatio || 1, 2);
+  function resize() {
+    canvas.width = Math.max(1, Math.round(innerWidth * scale()));
+    canvas.height = Math.max(1, Math.round(innerHeight * scale()));
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.uniform2f(uniform.screenSize, canvas.width, canvas.height);
+    needsRedraw = true;
+  }
+  resize();
+  window.onresize = resize;
+  return (time, features, reactive, calm, events) => {
+    const depth = Math.max(1, Number(byId("width").value) * Math.min(canvas.height / 920, canvas.width / 460));
+    const line = Number(byId("line").value) / 100;
+    const glow = Number(byId("halo").value) / 100;
+    const intensity = Number(byId("intensity").value) / 100;
+    const thickness = Number(byId("thickness").value) / 100;
+    geometry.top = canvas.width / (2 * (canvas.width + canvas.height));
+    const edges = ["edgeTop", "edgeRight", "edgeBottom", "edgeLeft"].map(id => byId(id).checked);
+    geometry.edges = edges.some(Boolean) ? edges : [true, true, true, true];
+    geometry.follow = byId("ribbonFollow").checked;
+    computeField(time, features, reactive, calm, events, byId("style").value);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, FIELD, 2, gl.RGBA, gl.FLOAT, field);
+    gl.uniform4f(uniform.shape, depth, Math.max(1.5 * scale(), depth * 0.085 * thickness), Math.max(2 * scale(), depth * 0.12), intensity);
+    gl.uniform4f(uniform.mixing, 1.4 * line, 0.32 * glow, 0.08 + 0.16 * glow, 2.6);
+    gl.uniform3fv(uniform.colorA, readColor("first"));
+    gl.uniform3fv(uniform.colorB, readColor("second"));
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    const w = canvas.width, h = canvas.height;
+    const band = Math.ceil(depth * 1.5) + 1;
+    if (band * 2 >= Math.min(w, h)) {
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      return;
+    }
+    // Exclude the center from rasterization and avoid blending the corners twice.
+    gl.enable(gl.SCISSOR_TEST);
+    for (const strip of [[0, 0, w, band], [0, h - band, w, band],
+      [0, band, band, h - 2 * band], [w - band, band, band, h - 2 * band]]) {
+      gl.scissor(...strip);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+    gl.disable(gl.SCISSOR_TEST);
+  };
+}
+
+// Colour inputs are sRGB; light is mixed in linear RGB.
+function readColor(id) {
+  const hex = Number.parseInt(byId(id).value.slice(1), 16);
+  return [hex >> 16 & 255, hex >> 8 & 255, hex & 255].map(v => {
+    const c = v / 255;
+    return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+}
+
+let objectURL;
+let analysis;
+let loadId = 0;
+let heldTime = null;
+let pending = false;
+const silence = new Float64Array(F_STRIDE);
+const interpolated = new Float64Array(F_STRIDE);
+
+function percentile(values, fraction) {
+  const sorted = Float32Array.from(values).sort();
+  return sorted[Math.min(sorted.length - 1, Math.floor(fraction * sorted.length))] || 0;
+}
+
+// Analyse the whole file once at 100 frames per second. Levels are normalised per track
+// (robust percentiles) and smoothed with a fast attack and slow release. From them come
+// bounded "sway" signals (damped springs kicked by the music) that move the light back and
+// forth, and a list of transient events that launch short-lived sparks. Frame j describes the
+// audio up to j/100 s, so any playback position maps to the same values whether it is reached
+// by playing, seeking or stepping.
+async function extractFeatures(buffer, id) {
+  const rate = buffer.sampleRate;
+  const size = Math.max(1, Math.round(rate / 100));
+  const count = Math.ceil(buffer.length / size);
+  const lowFactor = 1 - Math.exp(-2 * Math.PI * 150 / rate);
+  const midFactor = 1 - Math.exp(-2 * Math.PI * 2400 / rate);
+  const raw = [new Float32Array(count), new Float32Array(count), new Float32Array(count)];
+  const channels = Array.from({ length: Math.min(2, buffer.numberOfChannels) }, (_, i) => ({
+    pcm: buffer.getChannelData(i), lowPass: 0, midPass: 0
+  }));
+
+  for (let frame = 0; frame < count; frame++) {
+    if (frame % 250 === 0) {
+      if (id !== loadId) return null;
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    const start = frame * size;
+    const stop = Math.min(start + size, buffer.length);
+    for (const channel of channels) {
+      let { lowPass, midPass } = channel;
+      let low = 0, mid = 0, high = 0;
+      for (let i = start; i < stop; i++) {
+        const sample = channel.pcm[i];
+        lowPass += (sample - lowPass) * lowFactor;
+        midPass += (sample - midPass) * midFactor;
+        const middle = midPass - lowPass;
+        const top = sample - midPass;
+        low += lowPass * lowPass;
+        mid += middle * middle;
+        high += top * top;
+      }
+      channel.lowPass = lowPass;
+      channel.midPass = midPass;
+      const n = Math.max(1, stop - start);
+      raw[0][frame] += Math.sqrt(low / n) / channels.length;
+      raw[1][frame] += Math.sqrt(mid / n) / channels.length;
+      raw[2][frame] += Math.sqrt(high / n) / channels.length;
+    }
+  }
+  if (id !== loadId) return null;
+
+  // Per-track gain: the loud passages of any master land near 0.85.
+  const gains = raw.map(band => 0.85 / Math.max(1e-4, percentile(band, 0.95)));
+  const onsetRaw = new Float32Array(count);
+  let level = 0;
+  for (let frame = 0; frame < count; frame++) {
+    const energy = 0.4 * raw[0][frame] * gains[0] + 0.4 * raw[1][frame] * gains[1] + 0.2 * raw[2][frame] * gains[2];
+    onsetRaw[frame] = Math.max(0, energy - level);
+    level += (energy - level) * 0.18;
+  }
+  const onsetGain = 0.9 / Math.max(1e-4, percentile(onsetRaw, 0.985));
+
+  const frames = new Float64Array((count + 1) * F_STRIDE);
+  const stepper = new FeatureStepper(size / rate);
+  const sway = Array.from({ length: 4 }, () => new Float32Array(count));
+  const punch = new Float32Array(count);
+  const events = [];
+  let lastEvent = -1e9;
+  for (let frame = 0; frame < count; frame++) {
+    const targets = [raw[0][frame] * gains[0], raw[1][frame] * gains[1], raw[2][frame] * gains[2], onsetRaw[frame] * onsetGain];
+    stepper.step(targets, frames, (frame + 1) * F_STRIDE);
+    for (let k = 0; k < 4; k++) sway[k][frame] = stepper.sway[k];
+    punch[frame] = stepper.punchRaw;
+
+    // Transient events for sparks: local peaks of the onset curve, at least 0.1 s apart.
+    const o = targets[3];
+    if (o > 0.3 && frame - lastEvent >= 10) {
+      let peak = true;
+      for (let k = Math.max(0, frame - 5); k <= Math.min(count - 1, frame + 5); k++) {
+        if (onsetRaw[k] * onsetGain > o) { peak = false; break; }
+      }
+      if (peak) { events.push([(frame + 1) * stepper.dt, Math.min(1, o)]); lastEvent = frame; }
+    }
+  }
+  // Normalise each sway so that its strong excursions reach about ±1.
+  sway.forEach((values, k) => {
+    const magnitude = Math.max(1e-4, percentile(values.map(Math.abs), 0.98));
+    for (let frame = 0; frame < count; frame++) {
+      frames[(frame + 1) * F_STRIDE + SWAY + k] = Math.max(-1.5, Math.min(1.5, values[frame] / magnitude));
+    }
+  });
+  // Bass punch, normalised so that strong kicks reach about 0.9, and the kick list.
+  const punchGain = 0.9 / Math.max(1e-4, percentile(punch, 0.98));
+  const kicks = [], detector = new KickDetector(), orbit = new OrbitMotion();
+  for (let frame = 0; frame < count; frame++) {
+    const out = (frame + 1) * F_STRIDE;
+    const value = Math.min(1.2, punch[frame] * punchGain);
+    frames[out + PUNCH] = value;
+    const strength = detector.step(value);
+    if (strength) kicks.push([(frame + 1) * stepper.dt, strength]);
+    orbit.step(strength, frames[out + PRESENCE], stepper.dt);
+    frames[out + ORBIT] = orbit.phase;
+    frames[out + ORBIT_SPEED] = orbit.speed;
+  }
+  return { frames, count, rate: rate / size, eventTimes: Float64Array.from(events, e => e[0]), eventStrengths: Float32Array.from(events, e => e[1]),
+    kickTimes: Float64Array.from(kicks, e => e[0]), kickStrengths: Float32Array.from(kicks, e => e[1]) };
+}
+
+// Per-frame dynamics shared by file analysis and live input: smoothed band levels, presence,
+// and the sway springs. Springs are [angular frequency, damping ratio]; low and high are kicked
+// by rises in their band, with the direction flipping at every hit, so the light rocks instead
+// of circling.
+const ATTACK = [0.5, 0.55, 0.6, 0.75], RELEASE = [0.1, 0.12, 0.16, 0.15];
+const SPRINGS = [[TAU * 1.1, 0.45], [TAU * 0.35, 0.7], [TAU * 1.7, 0.4]];
+class FeatureStepper {
+  constructor(dt) {
+    this.dt = dt;
+    this.smooth = [0, 0, 0, 0];
+    this.presence = 0;
+    this.midSlow = 0;
+    this.section = 0;
+    this.springs = SPRINGS.map(() => ({ x: 0, v: 0, sign: 1, armed: true }));
+    this.sway = [0, 0, 0, 0];
+    this.lowSlow = 0;
+    this.punchRaw = 0;
+  }
+  // targets: normalised low, mid, high, onset. Writes levels and presence to out[offset…];
+  // the raw (unnormalised) sway values are left in this.sway.
+  step(targets, out, offset) {
+    const { smooth, dt } = this;
+    const previous = smooth.slice();
+    for (let b = 0; b < 4; b++) {
+      const target = Math.min(1, targets[b]);
+      const delta = target - smooth[b];
+      smooth[b] += delta * (delta >= 0 ? ATTACK[b] : RELEASE[b]);
+      out[offset + b] = smooth[b];
+    }
+    const loudness = Math.min(1, 0.45 * smooth[0] + 0.4 * smooth[1] + 0.15 * smooth[2]);
+    this.presence += (loudness - this.presence) * (loudness > this.presence ? 0.08 : 0.02);
+    out[offset + PRESENCE] = this.presence;
+    this.midSlow += (smooth[1] - this.midSlow) * 0.01;
+    const drives = [
+      Math.max(0, smooth[0] - previous[0]) / dt,
+      (smooth[1] - this.midSlow) * 6,
+      Math.max(0, smooth[2] - previous[2]) / dt
+    ];
+    SPRINGS.forEach(([omega, zeta], k) => {
+      const s = this.springs[k];
+      if (k !== 1) {
+        // A hit = a rise above threshold; re-arm once the rise has passed.
+        if (s.armed && drives[k] > 3) { s.sign = -s.sign; s.armed = false; }
+        else if (drives[k] < 1) s.armed = true;
+      }
+      const force = (k === 1 ? drives[k] : s.sign * drives[k]) * omega;
+      s.v += (force - omega * omega * s.x - 2 * zeta * omega * s.v) * dt;
+      s.x += s.v * dt;
+      this.sway[k] = s.x;
+    });
+    this.section += ((this.presence - 0.5) * 2 - this.section) * (dt / 3);
+    this.sway[3] = this.section;
+    // Bass punch: how far the bass level has just risen above its recent level (~0.25 s).
+    this.punchRaw = Math.max(0, smooth[0] - this.lowSlow);
+    this.lowSlow += (smooth[0] - this.lowSlow) * 0.04;
+  }
+}
+
+// Orbit style: one long line that circles the edge. Each kick throws it forward; between kicks
+// it coasts back towards a slow drift (faster when the music is fuller). Measured on the
+// reference recording: about 0.43 laps per second on average, surging to 1–2 laps per second
+// right after kicks. Shared by file and live analysis; the phase only ever grows.
+class OrbitMotion {
+  constructor() { this.phase = 0; this.speed = 0.04; }
+  step(kick, presence, dt) {
+    if (kick) this.speed += 0.75 * kick;
+    const drift = 0.03 + 0.06 * presence;
+    this.speed += (drift - this.speed) * (dt / 0.25);
+    this.phase += this.speed * dt;
+  }
+}
+
+// Kicks: the bass punch crossing 0.4 (re-armed below 0.2). Shared by file and live analysis.
+class KickDetector {
+  constructor() { this.armed = true; }
+  step(punch) {
+    if (this.armed && punch > 0.4) { this.armed = false; return Math.min(1, Math.max(0.4, punch * 1.5)); }
+    if (punch < 0.2) this.armed = true;
+    return 0;
+  }
+}
+
+// Live input (system sound, Apple Music): raw band levels arrive 100 times per second, the
+// same RMS values the file analysis computes. Normalisation adapts as the music plays
+// instead of using whole-track percentiles; events are confirmed 50 ms late (the same ±5 frame
+// peak test). The clock follows the arrival of audio, as close behind it as the delivery rhythm
+// allows, and keeps running through silence.
+class LiveFeatures {
+  constructor() { this.reset(); }
+  reset() {
+    this.dt = 0.01;
+    this.capacity = 1000;
+    this.frames = new Float64Array(this.capacity * F_STRIDE);
+    this.count = 0;
+    this.stepper = new FeatureStepper(this.dt);
+    this.reference = [0.05, 0.05, 0.05];
+    this.onsetReference = 0.01;
+    this.level = 0;
+    this.magnitude = [0, 0, 0, 0];
+    this.onsets = [];
+    this.lastEvent = -1e9;
+    this.events = { times: [], strengths: [], kickTimes: [], kickStrengths: [], now: 0 };
+    this.punchReference = 0.05;
+    this.kicks = new KickDetector();
+    this.orbit = new OrbitMotion();
+    this.offset = null;
+    this.slack = 0.01;
+  }
+  push(batch, now = performance.now()) {
+    // How far the clock had run past the newest audio when this batch arrived: the wait between
+    // deliveries. The light is drawn that much behind the newest audio (a running 97th
+    // percentile, 4–50 ms): just enough that it rarely has to stop and wait, and no more.
+    if (this.offset !== null) {
+      const overrun = now / 1000 - this.offset - this.count * this.dt;
+      this.slack = Math.min(0.05, Math.max(0.004, this.slack + (overrun > this.slack ? 0.004 * 0.97 : -0.004 * 0.03)));
+    }
+    for (const frame of batch) this.step(frame);
+    const latest = this.count * this.dt, candidate = now / 1000 - latest;
+    if (this.offset === null || candidate < this.offset) this.offset = candidate;
+    else this.offset += (candidate - this.offset) * 0.01;
+  }
+  step([low, mid, high]) {
+    const raw = [low, mid, high];
+    // Adaptive gain: a running estimate of each band's 95th percentile (the file analysis uses
+    // the whole track's), so loud passages land near 0.85.
+    const gains = raw.map((value, b) => {
+      this.reference[b] = quantileStep(this.reference[b], value, 0.95, 0.02);
+      return 0.85 / Math.max(1e-4, this.reference[b]);
+    });
+    const warm = Math.min(1, (this.count + 1) / 150);
+    const energy = 0.4 * low * gains[0] + 0.4 * mid * gains[1] + 0.2 * high * gains[2];
+    const onsetRaw = Math.max(0, energy - this.level);
+    this.level += (energy - this.level) * 0.18;
+    this.onsetReference = quantileStep(this.onsetReference, onsetRaw, 0.985, 0.05);
+    const onset = warm * onsetRaw * 0.9 / Math.max(1e-4, this.onsetReference);
+    const targets = [warm * low * gains[0], warm * mid * gains[1], warm * high * gains[2], onset];
+    const slot = this.count % this.capacity, out = slot * F_STRIDE;
+    this.stepper.step(targets, this.frames, out);
+    for (let k = 0; k < 4; k++) {
+      const x = this.stepper.sway[k], m = this.magnitude[k], a = Math.abs(x);
+      this.magnitude[k] = m + (a - m) * (a > m ? 0.05 : 0.0003);
+      this.frames[out + SWAY + k] = warm * Math.max(-1.5, Math.min(1.5, x / Math.max(1e-4, this.magnitude[k] * 0.9)));
+    }
+    this.punchReference = quantileStep(this.punchReference, this.stepper.punchRaw, 0.98, 0.05);
+    const punch = warm * Math.min(1.2, this.stepper.punchRaw * 0.9 / Math.max(1e-4, this.punchReference));
+    this.frames[out + PUNCH] = punch;
+    const kick = this.kicks.step(punch);
+    this.orbit.step(kick, this.frames[out + PRESENCE], this.dt);
+    this.frames[out + ORBIT] = this.orbit.phase;
+    this.frames[out + ORBIT_SPEED] = this.orbit.speed;
+    if (kick) {
+      this.events.kickTimes.push((this.count + 1) * this.dt);
+      this.events.kickStrengths.push(kick);
+      if (this.events.kickTimes.length > 16) { this.events.kickTimes.shift(); this.events.kickStrengths.shift(); }
+    }
+    // Event candidate five frames back: the largest onset within ±5 frames.
+    this.onsets.push(onset);
+    if (this.onsets.length > 11) this.onsets.shift();
+    if (this.onsets.length === 11) {
+      const candidate = this.count - 5, o = this.onsets[5];
+      if (o > 0.3 && candidate - this.lastEvent >= 10 && this.onsets.every(v => v <= o)) {
+        this.events.times.push((candidate + 1) * this.dt);
+        this.events.strengths.push(Math.min(1, o));
+        this.lastEvent = candidate;
+        if (this.events.times.length > 32) { this.events.times.shift(); this.events.strengths.shift(); }
+      }
+    }
+    this.count++;
+  }
+  // Render just behind the newest audio (see push). If audio stops arriving, silent frames keep
+  // the clock (and the light) moving.
+  clock(now = performance.now()) {
+    if (this.offset === null) return 0;
+    const t = now / 1000 - this.offset - this.slack;
+    const missing = Math.floor((t - this.count * this.dt) / this.dt) - 10;
+    if (missing > 0) for (let i = 0; i < Math.min(missing, 200); i++) this.step([0, 0, 0]);
+    return Math.max(0, Math.min(t, this.count * this.dt));
+  }
+  featuresAt(t) {
+    if (this.count === 0) return silence;
+    const first = Math.max(0, this.count - this.capacity + 1), last = this.count - 1;
+    const pos = Math.min(last, Math.max(first, t / this.dt - 1));
+    const a = Math.floor(pos), b = Math.min(a + 1, last), w = pos - a;
+    const oa = (a % this.capacity) * F_STRIDE, ob = (b % this.capacity) * F_STRIDE;
+    for (let i = 0; i < F_STRIDE; i++) interpolated[i] = this.frames[oa + i] * (1 - w) + this.frames[ob + i] * w;
+    return interpolated;
+  }
+}
+const live = new LiveFeatures();
+
+// Multiplicative running quantile: settles where a fraction q of the values lie below it.
+function quantileStep(estimate, value, q, rate) {
+  const next = estimate * (value > estimate ? 1 + q * rate : 1 - (1 - q) * rate);
+  return Math.min(1e3, Math.max(1e-5, next));
+}
+
+function featuresAt(seconds) {
+  if (!analysis) return silence;
+  const pos = Math.min(analysis.count, Math.max(0, seconds * analysis.rate));
+  const a = Math.floor(pos), b = Math.min(a + 1, analysis.count), t = pos - a;
+  for (let i = 0; i < F_STRIDE; i++) {
+    interpolated[i] = analysis.frames[a * F_STRIDE + i] * (1 - t) + analysis.frames[b * F_STRIDE + i] * t;
+  }
+  return interpolated;
+}
+
+const stamp = seconds => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
+function updateTransport() {
+  const clock = heldTime ?? audio.currentTime;
+  seek.value = clock;
+  byId("position").textContent = stamp(clock);
+  byId("precise").textContent = `${clock.toFixed(3)} s · 60 Hz`;
+  byId("play").textContent = audio.paused ? "재생" : "일시정지";
+}
+
+function seekTo(target) {
+  if (!Number.isFinite(audio.duration)) return;
+  // Quantise to microseconds so repeated ±1 frame steps land on exactly the same time.
+  const time = Math.round(Math.min(audio.duration, Math.max(0, target)) * 1e6) / 1e6;
+  heldTime = audio.paused ? time : null;
+  audio.currentTime = time;
+  needsRedraw = true;
+  updateTransport();
+}
+
+async function openFile(file) {
+  const id = ++loadId;
+  audio.pause();
+  analysis = null;
+  needsRedraw = true;
+  heldTime = null;
+  if (objectURL) URL.revokeObjectURL(objectURL);
+  objectURL = URL.createObjectURL(file);
+  audio.src = objectURL;
+  audio.load();
+  byId("track").textContent = file.name;
+  byId("player").hidden = false;
+  pending = true;
+  status.textContent = "음원 분석 중…";
+  mode.value = "music";
+  try {
+    const decoder = new OfflineAudioContext(2, 1, 44100);
+    const decoded = await decoder.decodeAudioData(await file.arrayBuffer());
+    const result = await extractFeatures(decoded, id);
+    if (id !== loadId) return false;
+    analysis = result;
+    needsRedraw = true;
+    status.textContent = "";
+    return true;
+  } catch (error) {
+    if (id !== loadId) return false;
+    status.textContent = "이 음원은 분석할 수 없습니다. WAV나 MP3 파일로 다시 열어 보세요.";
+    return false;
+  } finally {
+    if (id === loadId) pending = false;
+  }
+}
+byId("file").addEventListener("change", event => {
+  const file = event.target.files[0];
+  event.target.value = "";
+  if (file) openFile(file);
+});
+
+// Two colours from album art: the most vivid hue, then the strongest hue at least 40° away
+// (or a neighbour of the first when the art has only one). Both are lifted to glow well.
+function extractColors(image) {
+  const size = 48;
+  const sample = document.createElement("canvas");
+  sample.width = sample.height = size;
+  const context = sample.getContext("2d", { willReadFrequently: true });
+  context.drawImage(image, 0, 0, size, size);
+  const pixels = context.getImageData(0, 0, size, size).data;
+  const BINS = 36;
+  const weight = new Float64Array(BINS), sums = Array.from({ length: BINS }, () => [0, 0, 0]);
+  for (let i = 0; i < pixels.length; i += 4) {
+    const r = pixels[i] / 255, g = pixels[i + 1] / 255, b = pixels[i + 2] / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), chroma = max - min;
+    if (pixels[i + 3] < 128 || max < 0.15 || chroma < 0.08) continue;
+    let hue = max === r ? (g - b) / chroma : max === g ? 2 + (b - r) / chroma : 4 + (r - g) / chroma;
+    hue = ((hue / 6) % 1 + 1) % 1;
+    const w = Math.pow(chroma / max, 1.5) * max;
+    const bin = Math.floor(hue * BINS) % BINS;
+    weight[bin] += w;
+    sums[bin][0] += r * w; sums[bin][1] += g * w; sums[bin][2] += b * w;
+  }
+  const smoothWeight = Array.from(weight, (_, i) => weight[(i + BINS - 1) % BINS] * 0.5 + weight[i] + weight[(i + 1) % BINS] * 0.5);
+  const total = weight.reduce((a, b) => a + b, 0);
+  if (total < 1) return null;
+  const colourOf = bin => {
+    const s = [0, 0, 0]; let w = 0;
+    for (const k of [bin - 1, bin, bin + 1]) {
+      const j = (k + BINS) % BINS; w += weight[j];
+      for (let c = 0; c < 3; c++) s[c] += sums[j][c];
+    }
+    return s.map(v => v / Math.max(w, 1e-9));
+  };
+  const first = smoothWeight.indexOf(Math.max(...smoothWeight));
+  let second = -1, best = 0;
+  smoothWeight.forEach((w, i) => {
+    const distance = Math.min(Math.abs(i - first), BINS - Math.abs(i - first)) * 360 / BINS;
+    const score = distance >= 40 ? w * Math.min(1, distance / 90) : 0;
+    if (score > best) { best = score; second = i; }
+  });
+  const a = glowColor(colourOf(first));
+  const b = second >= 0 && best > 0.12 * smoothWeight[first] ? glowColor(colourOf(second)) : glowColor(colourOf(first), 30 / 360);
+  return [a, b];
+}
+
+function glowColor([r, g, b], shift = 0) {
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), chroma = max - min;
+  let hue = chroma === 0 ? 0 : max === r ? (g - b) / chroma : max === g ? 2 + (b - r) / chroma : 4 + (r - g) / chroma;
+  hue = (((hue / 6) + shift) % 1 + 1) % 1;
+  const saturation = Math.min(0.9, Math.max(0.55, max ? chroma / max : 0));
+  const value = Math.max(0.85, max);
+  const k = n => (n + hue * 6) % 6;
+  const f = n => value - value * saturation * Math.max(0, Math.min(k(n), 4 - k(n), 1));
+  return "#" + [f(5), f(3), f(1)].map(v => Math.round(v * 255).toString(16).padStart(2, "0")).join("");
+}
+
+function loadImage(source) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("image"));
+    image.src = source;
+  });
+}
+
+async function applyArtwork(source) {
+  const colours = extractColors(await loadImage(source));
+  if (!colours) return null;
+  byId("first").value = colours[0];
+  byId("second").value = colours[1];
+  syncPreset();
+  needsRedraw = true;
+  return colours;
+}
+
+byId("artwork").addEventListener("change", async event => {
+  const file = event.target.files[0];
+  event.target.value = "";
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  try {
+    status.textContent = (await applyArtwork(url)) ? "" : "이 이미지에서는 색을 고르기 어렵습니다.";
+  } catch {
+    status.textContent = "이미지를 읽을 수 없습니다.";
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+});
+
+byId("play").addEventListener("click", async () => {
+  if (!audio.paused) {
+    audio.pause();
+    return;
+  }
+  if (audio.ended) seekTo(0);
+  try { await audio.play(); }
+  catch { status.textContent = "이 음원을 재생할 수 없습니다."; }
+});
+audio.addEventListener("loadedmetadata", () => {
+  if (!Number.isFinite(audio.duration)) return;
+  seek.max = audio.duration;
+  byId("duration").textContent = stamp(audio.duration);
+  updateTransport();
+});
+audio.addEventListener("pause", () => {
+  if (heldTime === null) heldTime = audio.currentTime;
+  updateTransport();
+});
+audio.addEventListener("play", () => {
+  heldTime = null;
+  updateTransport();
+});
+audio.addEventListener("timeupdate", updateTransport);
+audio.addEventListener("error", () => {
+  if (!pending) status.textContent = "브라우저가 이 오디오 형식을 재생할 수 없습니다.";
+});
+seek.addEventListener("input", () => seekTo(Number(seek.value)));
+function step(direction) {
+  audio.pause();
+  seekTo((heldTime ?? audio.currentTime) + direction / 60);
+}
+byId("back").addEventListener("click", () => step(-1));
+byId("forward").addEventListener("click", () => step(1));
+
+function setPanel(visible) {
+  byId("panel").hidden = !visible;
+  byId("show").hidden = visible;
+  (visible ? byId("hide") : byId("show")).focus({ preventScroll: true });
+}
+byId("hide").addEventListener("click", () => setPanel(false));
+byId("show").addEventListener("click", () => setPanel(true));
+addEventListener("keydown", event => {
+  if (event.key === "Escape" && byId("panel").hidden) setPanel(true);
+});
+byId("fullscreen").addEventListener("click", async () => {
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await document.documentElement.requestFullscreen();
+  } catch {
+    status.textContent = "이 창에서는 전체 화면을 열 수 없습니다. Safari나 Chrome에서 파일을 직접 여세요.";
+  }
+});
+document.addEventListener("fullscreenchange", () => {
+  byId("fullscreen").textContent = document.fullscreenElement ? "전체 화면 종료" : "전체 화면";
+});
+
+for (const id of ["style", "width", "thickness", "line", "halo", "intensity", "first", "second",
+  "edgeTop", "edgeRight", "edgeBottom", "edgeLeft", "ribbonFollow"]) {
+  byId(id).addEventListener("input", () => { needsRedraw = true; });
+}
+
+// Edges the light may use (all styles); at least one stays on.
+function syncEdges(changed) {
+  const boxes = ["edgeTop", "edgeRight", "edgeBottom", "edgeLeft"].map(byId);
+  if (changed && !boxes.some(b => b.checked)) changed.checked = true;
+  byId("followControl").hidden = byId("style").value !== "ribbon";
+  byId("edgeControl").hidden = byId("style").value === "bottom";
+  needsRedraw = true;
+}
+for (const id of ["edgeTop", "edgeRight", "edgeBottom", "edgeLeft"]) byId(id).addEventListener("change", event => syncEdges(event.target));
+byId("style").addEventListener("change", () => syncEdges());
+syncEdges();
+
+// Colour presets: [name, first colour, second colour].
+const PRESETS = [
+  ["Ribbon", "#649bff", "#986ceb"],
+  ["딥 블루", "#1f8bff", "#0b2a8f"],
+  ["레드 · 그린", "#ff3a3a", "#36ff7a"],
+  ["오로라", "#3cf2b4", "#5a7bff"],
+  ["선셋", "#ff7a45", "#ff3d7f"],
+  ["네온", "#ff2fd6", "#2ff3ff"],
+  ["앰버", "#ffb347", "#ff5a1f"],
+  ["아이스", "#c4e8ff", "#5f9dff"],
+  ["바이올렛", "#c27cff", "#4b3cff"],
+  ["화이트", "#f4f6ff", "#8f9bbd"]
+];
+const delayInput = byId("delay");
+const showDelay = () => { byId("delayValue").textContent = `${delayInput.value} ms`; };
+delayInput.addEventListener("input", () => { showDelay(); needsRedraw = true; });
+showDelay();
+const presetSelect = byId("preset");
+presetSelect.add(new Option("사용자 지정", "custom"));
+PRESETS.forEach(([name], i) => presetSelect.add(new Option(name, String(i))));
+function syncPreset() {
+  const a = byId("first").value.toLowerCase(), b = byId("second").value.toLowerCase();
+  const match = PRESETS.findIndex(([, x, y]) => x === a && y === b);
+  presetSelect.value = match >= 0 ? String(match) : "custom";
+}
+presetSelect.addEventListener("change", () => {
+  const preset = PRESETS[Number(presetSelect.value)];
+  if (!preset) return;
+  byId("first").value = preset[1];
+  byId("second").value = preset[2];
+  needsRedraw = true;
+});
+for (const id of ["first", "second"]) byId(id).addEventListener("input", syncPreset);
+syncPreset();
+
+// Embedded in the macOS app (ribbon:// scheme or ?embed): the page shows only the light and
+// the app drives it through window.ribbon.
+const embedded = window.ribbonIOS === true || location.protocol === "ribbon:" || new URLSearchParams(location.search).has("embed");
+if (embedded) {
+  document.documentElement.classList.add("embed");
+  const inputs = { style: "style", ribbonFollow: "ribbonFollow", edgeTop: "edgeTop", edgeRight: "edgeRight", edgeBottom: "edgeBottom", edgeLeft: "edgeLeft",
+    width: "width", thickness: "thickness", delay: "delay", line: "line", halo: "halo", intensity: "intensity", colorA: "first", colorB: "second" };
+  window.ribbon = {
+    configure(settings) {
+      for (const [key, id] of Object.entries(inputs)) {
+        if (settings[key] === undefined) continue;
+        if (byId(id).type === "checkbox") byId(id).checked = !!settings[key]; else byId(id).value = settings[key];
+      }
+      syncEdges();
+      syncPreset();
+      showDelay();
+      if (settings.mode && settings.mode !== mode.value) {
+        if (settings.mode === "live" && mode.value !== "live") live.reset();
+        if (settings.mode !== "music") audio.pause();
+        if (!mode.querySelector(`option[value="${settings.mode}"]`)) mode.add(new Option(settings.mode, settings.mode));
+        mode.value = settings.mode;
+      }
+      needsRedraw = true;
+    },
+    resetLive() { live.reset(); },
+    pushLive(batch) { live.push(batch); },
+    async openURL(url, name) {
+      const blob = await (await fetch(url)).blob();
+      return openFile(new File([blob], name, { type: blob.type }));
+    },
+    async transport(command, value) {
+      if (command === "seek") seekTo(value);
+      else if (command === "pause") audio.pause();
+      else if (command === "play" || (command === "toggle" && audio.paused)) {
+        if (audio.ended) seekTo(0);
+        try { await audio.play(); } catch { return false; }
+      } else if (command === "toggle") audio.pause();
+      return true;
+    },
+    async artworkColors(source) {
+      try { const image = await loadImage(source); return extractColors(image); } catch { return null; }
+    },
+    state() {
+      const clock = heldTime ?? audio.currentTime;
+      return { mode: mode.value, time: clock, duration: Number.isFinite(audio.duration) ? audio.duration : 0,
+        playing: !audio.paused, analysing: pending, ready: !!analysis, message: status.textContent };
+    }
+  };
+  window.webkit?.messageHandlers?.ribbon?.postMessage({ type: "ready" });
+}
+
+try {
+  let render = initRenderer();
+  let lastTime;
+  let lastMode;
+  canvas.addEventListener("webglcontextlost", event => {
+    event.preventDefault();
+    render = null;
+    status.textContent = "그래픽 연결이 끊겼습니다.";
+  });
+  canvas.addEventListener("webglcontextrestored", () => {
+    render = initRenderer();
+    status.textContent = "";
+  });
+  function draw(now) {
+    const currentMode = mode.value;
+    const calm = prefersReducedMotion.matches ? 0.3 : 1;
+    // Light delay (for outputs that play late, such as Bluetooth headphones): the light shows
+    // the music that many milliseconds earlier.
+    const delay = Number(byId("delay").value) / 1000;
+    let clock = Math.max(0, (heldTime ?? audio.currentTime) - delay), reactive = false, features = silence, events = null;
+    if (currentMode === "live") {
+      // Until audio arrives (or if capture is not permitted) the light keeps flowing gently.
+      clock = live.count > 0 ? Math.max(0, live.clock(now) - delay) : now * 0.00045;
+      reactive = live.count > 0;
+      if (reactive) { features = live.featuresAt(clock); events = live.events; events.now = clock; }
+    } else if (currentMode === "music" && analysis) {
+      reactive = true;
+      features = featuresAt(clock);
+      events = { times: analysis.eventTimes, strengths: analysis.eventStrengths,
+        kickTimes: analysis.kickTimes, kickStrengths: analysis.kickStrengths, now: clock };
+    }
+    const time = calm * (currentMode === "still" ? 0 : currentMode === "drift" ? now * 0.00045 : clock);
+    if (render && (needsRedraw || time !== lastTime || currentMode !== lastMode)) {
+      render(time, features, reactive, calm, events);
+      needsRedraw = false;
+      lastTime = time;
+      lastMode = currentMode;
+    }
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+} catch (error) {
+  status.textContent = "테두리를 표시하려면 WebGL 2가 필요합니다.";
+  console.error(error);
+}
+</script>
+</html>

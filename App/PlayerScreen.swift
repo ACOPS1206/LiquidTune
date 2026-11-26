@@ -13,6 +13,7 @@ struct PlayerScreen: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicType
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage(RibbonStyle.storageKey) private var ribbonStyle: RibbonStyle = .off
     @State private var mode: Mode = .artwork
     @State private var showsLyricsControls = true
     @State private var previousIdleTimerDisabled: Bool?
@@ -35,6 +36,9 @@ struct PlayerScreen: View {
     }
     private var animatesBass: Bool {
         playback.playing && scenePhase == .active && model.dynamicColor && !reduceMotion
+    }
+    private var ribbonCaptureEnabled: Bool {
+        ribbonStyle != .off && scenePhase == .active && !reduceMotion
     }
     private var dark: Bool { colorScheme == .dark }
     private var artworkPalette: ArtworkPalette? { model.dynamicColor ? artworkColors?.palette : nil }
@@ -95,6 +99,19 @@ struct PlayerScreen: View {
             .ignoresSafeArea()
             .allowsHitTesting(false)
         }
+        .overlay {
+            if ribbonStyle != .off {
+                RibbonOverlay(playback: playback, style: ribbonStyle,
+                              playsAnimation: ribbonCaptureEnabled && playback.playing)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
+        .onChange(of: ribbonCaptureEnabled, initial: true) { _, enabled in
+            playback.setRibbonCaptureEnabled(enabled)
+        }
+        .onDisappear { playback.setRibbonCaptureEnabled(false) }
         .task(id: animatesBass) {
             bassPulse = 0
             guard animatesBass else { return }
@@ -494,6 +511,13 @@ struct PlayerScreen: View {
             if playback.error != nil { Button("Retry playback") { playback.resume() } }
         }
         Button("Playback speed", systemImage: "speedometer") { panel = .speed }
+        Menu("Edge lighting", systemImage: "light.strip.2") {
+            Picker("Edge lighting", selection: $ribbonStyle) {
+                ForEach(RibbonStyle.allCases) { style in
+                    Text(style.title).tag(style)
+                }
+            }
+        }
         Button(model.visualizer ? "Hide waveform" : "Show waveform", systemImage: "waveform") {
             if let track = playback.current, case .server = track.location { showWaveformMessage = true }
             else { model.visualizer.toggle() }

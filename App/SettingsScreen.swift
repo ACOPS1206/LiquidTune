@@ -6,6 +6,7 @@ struct SettingsScreen: View {
 
     @Environment(LibraryModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @AppStorage(RibbonStyle.storageKey) private var ribbonStyle: RibbonStyle = .off
     @State private var form: FormRoute?
     @State private var disconnect: ServerProfile?
 
@@ -26,6 +27,11 @@ struct SettingsScreen: View {
                     }
                     Toggle("Artwork colors in player", isOn: $settings.dynamicColor)
                     Toggle("Audio visualization", isOn: $settings.visualizer)
+                    Picker("Edge lighting", selection: $ribbonStyle) {
+                        ForEach(RibbonStyle.allCases) { style in
+                            Text(style.title).tag(style)
+                        }
+                    }
                 }
                 Section("Music sources") {
                     Button("Import audio files", systemImage: "square.and.arrow.down", action: importFiles)
